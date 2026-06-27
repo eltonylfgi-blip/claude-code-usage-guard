@@ -1,0 +1,6 @@
+node_modules/
+*.log
+.DS_Store
+.usage-guard-state.json
+usage-guard.json
+/tmp/

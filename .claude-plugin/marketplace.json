@@ -1,0 +1,14 @@
+{
+  "name": "cc-guard",
+  "owner": {
+    "name": "eltonylfgi-blip"
+  },
+  "plugins": [
+    {
+      "name": "usage-guard",
+      "source": ".",
+      "description": "Warns you in-session when you're burning through your Claude Code usage fast, plus a /usage command. Zero deps; local-only.",
+      "version": "0.1.0"
+    }
+  ]
+}
