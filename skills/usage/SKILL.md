@@ -9,7 +9,8 @@ Report the user's current Claude Code usage by reading their local session trans
 
 ## Steps
 
-1. Run the engine to get the numbers for the last 5 hours (the rolling window):
+1. Run the engine to get the numbers for the last 5 hours (the default rolling window; the
+   CLI always uses 5h even if you set a different `windowHours` for the hook):
 
    ```bash
    node "${CLAUDE_PLUGIN_ROOT}/lib/engine.mjs"

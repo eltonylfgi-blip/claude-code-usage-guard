@@ -4,7 +4,7 @@
   "description": "A Claude Code plugin that warns you in-session when you're burning through your usage fast, and a /usage command to check spend anytime. Zero dependencies, reads local transcripts only.",
   "type": "module",
   "bin": {
-    "cc-usage-guard": "lib/engine.mjs"
+    "usage-guard": "lib/engine.mjs"
   },
   "scripts": {
     "usage": "node lib/engine.mjs"

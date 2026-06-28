@@ -4,7 +4,7 @@ A tiny [Claude Code](https://code.claude.com) plugin that **warns you in-session
 
 - **Automatic.** A `Stop` hook checks your usage after each turn and drops one short line when you cross your budget or your burn rate spikes: `🛑 Over budget: 120% (6.0M of 5.0M) in 5h`.
 - **Quiet.** It warns once, then stays silent for a cooldown window. No spam.
-- **Safe.** Zero dependencies, reads only your local transcript files, makes no network calls. If anything goes wrong it stays silent — it can never disrupt your session.
+- **Safe.** Zero dependencies, reads only your local transcript files, makes no network calls. If anything goes wrong it stays silent and exits cleanly (fail-open), and the hook is capped at a 5s timeout — so in practice it won't disrupt your session.
 
 > **How is this different from [ccusage](https://github.com/ryoppippi/ccusage)?** ccusage is a great *reporting* CLI you run to see a breakdown. usage-guard is a *proactive guard*: it nudges you **in the moment**, inside the session, before you blow your budget. Use both.
 
@@ -15,7 +15,9 @@ A tiny [Claude Code](https://code.claude.com) plugin that **warns you in-session
 /plugin install usage-guard@cc-guard
 ```
 
-That's it. The hook is active immediately. By default there's no budget set, so it stays quiet until you configure one (below).
+That's it. The hook is active immediately. By default there's no budget set, so it stays quiet until you configure one (below). **Until `weightBudget` or `burnRatePerHour` is greater than 0, the guard is intentionally silent.**
+
+**Using the Claude Desktop app?** `/plugin` only exists in the terminal CLI. For the desktop app you wire the `Stop` hook manually in `~/.claude/settings.json` — see **[TUTORIAL.md](./TUTORIAL.md)**, which walks through both routes step by step (and setting a budget, and uninstalling).
 
 ## Configure
 
@@ -38,9 +40,9 @@ usage-guard reads `~/.claude/usage-guard.json` (create it). All fields are optio
 | `warnPct` | `0.8` | Warn once you cross this fraction of the budget. |
 | `burnRatePerHour` | `0` (off) | Warn if your spend in the **last hour** exceeds this. |
 | `throttleMinutes` | `10` | Minimum gap between warnings. |
-| `quiet` | `false` | `true` disables all warnings (still computable via `/usage`). |
+| `quiet` | `false` | `true` disables all warnings (still computable via `/usage-guard:usage`). |
 
-**There is no public per-plan usage API**, so you set your own budget — like reading your own meter. Run `/usage-guard:usage` (or `npx node lib/engine.mjs`) to see your current numbers, then pick a `weightBudget` a bit above a comfortable session.
+**There is no public per-plan usage API**, so you set your own budget — like reading your own meter. Run `/usage-guard:usage` to see your current numbers, then pick a `weightBudget` a bit above a comfortable session. (From a local clone you can also run `node lib/engine.mjs` directly.) New to this? **[TUTORIAL.md](./TUTORIAL.md)** has a numbered "set your budget" recipe.
 
 ## Check usage anytime
 
@@ -78,6 +80,15 @@ Cache reads are ~10× cheaper, so they count at 0.1. **It's a proxy for how much
 - `lib/config.mjs` — loads your `usage-guard.json` with safe defaults.
 - `hooks/usage-guard-hook.mjs` — the `Stop` hook. Reads recent usage, emits at most one warning, throttled, fail-open.
 - `skills/usage/SKILL.md` — the `/usage-guard:usage` status command.
+
+> The throttle state lives in `~/.claude/.usage-guard-state.json` and is per-machine best-effort — across two sessions ending at the very same moment you might rarely get a duplicate warning.
+
+## Uninstall / disable
+
+- **Silence without removing:** set `"quiet": true` in `~/.claude/usage-guard.json`. Warnings stop; `/usage-guard:usage` still works.
+- **Terminal CLI:** `/plugin uninstall usage-guard@cc-guard` (and optionally `/plugin marketplace remove cc-guard`).
+- **Desktop app (manual hook):** delete the `Stop`-hook block from `~/.claude/settings.json` and restart the app.
+- **Cleanup (optional):** delete `~/.claude/.usage-guard-state.json` and `~/.claude/usage-guard.json`.
 
 ## License
 

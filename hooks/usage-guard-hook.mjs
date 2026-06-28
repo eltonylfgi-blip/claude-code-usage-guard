@@ -4,11 +4,9 @@
 // approaching your self-set budget OR burning unusually fast, emits ONE short warning line.
 // Throttled so it never spams. Fully fail-safe: any error -> exit 0, no output, no harm.
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, renameSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { collect, summarize } from "../lib/engine.mjs";
-import { loadConfig } from "../lib/config.mjs";
 
 function fmt(n) {
   n = Math.round(n);
@@ -29,12 +27,20 @@ function readState() {
   }
 }
 function writeState(s) {
+  // Write atomically (tmp + rename) so a concurrent session never reads a torn file.
   try {
-    writeFileSync(statePath(), JSON.stringify(s));
+    const p = statePath();
+    const tmp = p + ".tmp";
+    writeFileSync(tmp, JSON.stringify(s));
+    renameSync(tmp, p);
   } catch {}
 }
 
 async function main() {
+  // Import inside the try so an evaluation-time throw in a lib still fails open.
+  const { collect, summarize } = await import("../lib/engine.mjs");
+  const { loadConfig } = await import("../lib/config.mjs");
+
   const cfg = loadConfig();
   if (cfg.quiet) return; // disabled by user
 
@@ -58,13 +64,13 @@ async function main() {
       candidates.push({
         kind: "budget",
         msg:
-          (over ? "🛑 Tope superado: " : "⚠️ Cerca del tope: ") +
-          `${Math.round(pct * 100)}% (${fmt(s.weight)} de ${fmt(cfg.weightBudget)}) en ${cfg.windowHours}h`,
+          (over ? "🛑 Over budget: " : "⚠️ Near budget: ") +
+          `${Math.round(pct * 100)}% (${fmt(s.weight)} of ${fmt(cfg.weightBudget)}) in ${cfg.windowHours}h`,
       });
     }
   }
   if (cfg.burnRatePerHour > 0 && rate >= cfg.burnRatePerHour) {
-    candidates.push({ kind: "rate", msg: `⚠️ Vas rápido: ritmo ${fmt(rate)}/h (límite ${fmt(cfg.burnRatePerHour)}/h)` });
+    candidates.push({ kind: "rate", msg: `⚠️ Burning fast: ${fmt(rate)}/h (limit ${fmt(cfg.burnRatePerHour)}/h)` });
   }
   if (!candidates.length) return;
 
@@ -82,7 +88,9 @@ async function main() {
   process.stdout.write(JSON.stringify({ systemMessage: pick.msg, suppressOutput: false }));
 }
 
-// Read (and ignore) stdin so the pipe closes cleanly, then run. Never throw.
+// The hook derives everything it needs from the filesystem and intentionally ignores its
+// stdin JSON payload; process.exit(0) below terminates without needing to drain it.
+// Never throw: fail open so the guard can never disrupt the session.
 try {
   await main();
 } catch {
