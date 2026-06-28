@@ -1,12 +1,17 @@
 # usage-guard
 
-A tiny [Claude Code](https://code.claude.com) plugin that **warns you in-session when you're burning through your usage fast** — and gives you a `/usage-guard:usage` command to check your spend anytime.
+A tiny [Claude Code](https://code.claude.com) plugin that **warns you in-session as you approach your real plan limits** (the 5-hour and weekly rolling quotas) — with concrete numbers, a burn-rate proxy, and a `/usage-guard:usage` command to check anytime.
 
-- **Automatic.** A `Stop` hook checks your usage after each turn and drops one short line when you cross your budget or your burn rate spikes: `🛑 Over budget: 120% (6.0M of 5.0M) in 5h`.
-- **Quiet.** It warns once, then stays silent for a cooldown window. No spam.
-- **Safe.** Zero dependencies, reads only your local transcript files, makes no network calls. If anything goes wrong it stays silent and exits cleanly (fail-open), and the hook is capped at a 5s timeout — so in practice it won't disrupt your session.
+It runs in two modes, automatically:
 
-> **How is this different from [ccusage](https://github.com/ryoppippi/ccusage)?** ccusage is a great *reporting* CLI you run to see a breakdown. usage-guard is a *proactive guard*: it nudges you **in the moment**, inside the session, before you blow your budget. Use both.
+- **Primary — real plan quota.** If you wire up the tiny status-line shim (one line in your settings, below), Claude Code hands it your actual `rate_limits` (5-hour + weekly `used_percentage` and reset times). usage-guard snapshots that locally and warns when a window crosses your threshold: `⚠️ Plan 5h quota: 88% used · resets in 1h 29m`.
+- **Fallback — weighted budget.** If the real quota isn't available (status-line not wired, or a session that hasn't had its first API response yet), it falls back to a budget **you** set against a "weighted spend" proxy read from local transcripts: `🛑 Over budget: 120% (6.0M of 5.0M) in 5h`.
+
+Either way it's **quiet** (warns once, then a cooldown — no spam) and **safe** (zero dependencies; reads only local files; **no network calls**; fail-open with a 5s cap, so it can't disrupt your session).
+
+> **Doesn't Claude Code already warn me about the 5-hour limit?** Yes — it shows a native heads-up near the limit. usage-guard's added value is **concrete numbers in-session** (exact % for *both* the 5h and weekly windows + reset countdown), the **weighted burn-rate** fallback when real quota isn't present, and `/usage-guard:usage` to pull the numbers on demand. If you only want the native nudge, you don't need this.
+
+> **How is this different from [ccusage](https://github.com/ryoppippi/ccusage)?** ccusage is a great *reporting* CLI you run to see a breakdown. usage-guard is a *proactive guard*: it nudges you **in the moment**, inside the session, as you near a limit. Use both.
 
 ## Install
 
@@ -15,9 +20,37 @@ A tiny [Claude Code](https://code.claude.com) plugin that **warns you in-session
 /plugin install usage-guard@cc-guard
 ```
 
-That's it. The hook is active immediately. By default there's no budget set, so it stays quiet until you configure one (below). **Until `weightBudget` or `burnRatePerHour` is greater than 0, the guard is intentionally silent.**
+The `Stop` hook (the part that warns you) is active immediately. To unlock the **real plan quota** mode, do the one-time status-line wiring below.
 
-**Using the Claude Desktop app?** `/plugin` only exists in the terminal CLI. For the desktop app you wire the `Stop` hook manually in `~/.claude/settings.json` — see **[TUTORIAL.md](./TUTORIAL.md)**, which walks through both routes step by step (and setting a budget, and uninstalling).
+### Enable real plan quota (one-time, ~30 seconds)
+
+Claude Code only exposes your real `rate_limits` to a **status-line** command, never to a hook — so usage-guard ships a small status-line shim that snapshots them to a local file the hook reads. (This is a documented Claude Code limitation, not a workaround: a plugin can't auto-register a top-level `statusLine`, so you add the one line.)
+
+Add a `statusLine` block to `~/.claude/settings.json` (Windows: `%USERPROFILE%\.claude\settings.json`). Use the path to your installed plugin (after install it lives under `~/.claude/plugins/`; the exact dir is shown by `/plugin`):
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "node \"/ABSOLUTE/PATH/TO/usage-guard/hooks/usage-guard-statusline.mjs\""
+  }
+}
+```
+
+- **Already have a status line?** Don't lose it — set `USAGE_GUARD_STATUSLINE` to your existing command and the shim re-runs it after snapshotting, so your line still renders:
+  ```json
+  {
+    "statusLine": {
+      "type": "command",
+      "command": "USAGE_GUARD_STATUSLINE='~/.claude/my-statusline.sh' node \"/ABSOLUTE/PATH/TO/usage-guard/hooks/usage-guard-statusline.mjs\""
+    }
+  }
+  ```
+  (On Windows, set the env var in the wrapping shell or a `.cmd`. See **[TUTORIAL.md](./TUTORIAL.md)**.)
+- The shim makes **no network calls** — it only reads the JSON Claude Code already pipes to it on stdin, writes `~/.claude/.usage-guard-limits.json`, and reprints your status line. Fail-open: if anything goes wrong, your status line still renders.
+- Real quota appears only for **Claude.ai Pro/Max** sessions, and only after the first API response. Until then, the guard quietly uses the weighted-budget fallback.
+
+**Using the Claude Desktop app?** `/plugin` only exists in the terminal CLI. For the desktop app you wire the `Stop` hook (and optionally the status line) manually — see **[TUTORIAL.md](./TUTORIAL.md)**.
 
 ## Configure
 
@@ -25,6 +58,7 @@ usage-guard reads `~/.claude/usage-guard.json` (create it). All fields are optio
 
 ```json
 {
+  "planWarnPct": 0.8,
   "windowHours": 5,
   "weightBudget": 8000000,
   "warnPct": 0.8,
@@ -35,18 +69,19 @@ usage-guard reads `~/.claude/usage-guard.json` (create it). All fields are optio
 
 | Field | Default | Meaning |
 |-------|---------|---------|
-| `windowHours` | `5` | Rolling window to measure (Claude usage limits are rolling). |
-| `weightBudget` | `0` (off) | Your soft cap of **weighted spend** in that window. Warns at `warnPct`. |
-| `warnPct` | `0.8` | Warn once you cross this fraction of the budget. |
-| `burnRatePerHour` | `0` (off) | Warn if your spend in the **last hour** exceeds this. |
+| `planWarnPct` | `0.8` | **(Real-quota mode)** Warn once a real plan window (5h or weekly) crosses this fraction. |
+| `windowHours` | `5` | *(Fallback)* Rolling window for the weighted-budget proxy. |
+| `weightBudget` | `0` (off) | *(Fallback)* Your soft cap of **weighted spend**. Warns at `warnPct`. Only used when real quota is unavailable. |
+| `warnPct` | `0.8` | *(Fallback)* Warn once you cross this fraction of `weightBudget`. |
+| `burnRatePerHour` | `0` (off) | Warn if your weighted spend **in the last hour** exceeds this. Independent of the modes above. |
 | `throttleMinutes` | `10` | Minimum gap between warnings. |
 | `quiet` | `false` | `true` disables all warnings (still computable via `/usage-guard:usage`). |
 
-**There is no public per-plan usage API**, so you set your own budget — like reading your own meter. Run `/usage-guard:usage` to see your current numbers, then pick a `weightBudget` a bit above a comfortable session. (From a local clone you can also run `node lib/engine.mjs` directly.) New to this? **[TUTORIAL.md](./TUTORIAL.md)** has a numbered "set your budget" recipe.
+In **real-quota mode** you don't need to guess a budget — `planWarnPct` is a fraction of your *actual* plan limit. The `weightBudget` proxy only matters as a fallback when real quota isn't present.
 
 ## Check usage anytime
 
-Type `/usage-guard:usage` in Claude Code. It reports weighted spend, burn rate, the token breakdown, and how close you are to your budget.
+Type `/usage-guard:usage` in Claude Code. When real quota is available it leads with your actual 5h/weekly percentages and reset times, then shows the weighted breakdown.
 
 Or from a terminal:
 
@@ -55,7 +90,11 @@ node lib/engine.mjs
 ```
 
 ```
-Claude Code usage — last 5h
+Real plan quota (from Claude Code rate_limits):
+  plan 5h     : 88% used   (resets in 1h 30m)
+  plan weekly : 41% used   (resets in 55h 33m)
+
+Claude Code usage — last 5h (weighted proxy)
   weighted spend : 4.5M  (1.2M/h burn rate)
   output tokens  : 183.0k
   input (fresh)  : 416.9k
@@ -64,31 +103,34 @@ Claude Code usage — last 5h
     claude-opus-4-8: 4.5M
 ```
 
-## What "weighted spend" means
+(The "Real plan quota" block appears only once the status-line shim has captured it.)
 
-A single comparable number so you don't juggle five token counts:
+## What "weighted spend" means (the fallback proxy)
+
+When real quota isn't available, usage-guard rolls your token counts into one comparable number:
 
 ```
 weight = input + output + cache_creation + (cache_read × 0.1)
 ```
 
-Cache reads are ~10× cheaper, so they count at 0.1. **It's a proxy for how much you're spending, not an exact bill.** It reads the `usage` field Claude Code already writes to each turn in `~/.claude/projects/**/*.jsonl`.
+Cache reads are ~10× cheaper, so they count at 0.1. **It's a proxy for how much you're spending, not an exact bill, and not your plan quota** — it's the best you can do from the transcripts alone, which is why the real `rate_limits` mode is preferred. It reads the `usage` field Claude Code already writes to each turn in `~/.claude/projects/**/*.jsonl`.
 
 ## How it works
 
-- `lib/engine.mjs` — scans local transcripts, sums tokens, computes burn rate. (Importable + a CLI.)
+- `hooks/usage-guard-statusline.mjs` — runs as your status line; snapshots Claude Code's real `rate_limits` to `~/.claude/.usage-guard-limits.json` and reprints your status line. No network.
+- `hooks/usage-guard-hook.mjs` — the `Stop` hook. Prefers the captured real quota; falls back to the weighted budget. Emits at most one warning, throttled, fail-open.
+- `lib/engine.mjs` — scans local transcripts, sums tokens, computes the weighted proxy, and reads the captured limits. (Importable + a CLI.)
 - `lib/config.mjs` — loads your `usage-guard.json` with safe defaults.
-- `hooks/usage-guard-hook.mjs` — the `Stop` hook. Reads recent usage, emits at most one warning, throttled, fail-open.
 - `skills/usage/SKILL.md` — the `/usage-guard:usage` status command.
 
-> The throttle state lives in `~/.claude/.usage-guard-state.json` and is per-machine best-effort — across two sessions ending at the very same moment you might rarely get a duplicate warning.
+> State files live in your Claude config dir: `~/.claude/.usage-guard-limits.json` (latest real-quota snapshot) and `~/.claude/.usage-guard-state.json` (throttle memory). Both are best-effort and safe to delete.
 
 ## Uninstall / disable
 
-- **Silence without removing:** set `"quiet": true` in `~/.claude/usage-guard.json`. Warnings stop; `/usage-guard:usage` still works.
-- **Terminal CLI:** `/plugin uninstall usage-guard@cc-guard` (and optionally `/plugin marketplace remove cc-guard`).
-- **Desktop app (manual hook):** delete the `Stop`-hook block from `~/.claude/settings.json` and restart the app.
-- **Cleanup (optional):** delete `~/.claude/.usage-guard-state.json` and `~/.claude/usage-guard.json`.
+- **Silence without removing:** set `"quiet": true` in `~/.claude/usage-guard.json`.
+- **Terminal CLI:** `/plugin uninstall usage-guard@cc-guard` (and optionally `/plugin marketplace remove cc-guard`). Remove the `statusLine` block from `settings.json` if you added it.
+- **Desktop app (manual):** delete the `Stop`-hook block (and the `statusLine` block) from `~/.claude/settings.json` and restart.
+- **Cleanup (optional):** delete `~/.claude/.usage-guard-state.json`, `~/.claude/.usage-guard-limits.json`, and `~/.claude/usage-guard.json`.
 
 ## License
 

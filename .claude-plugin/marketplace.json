@@ -7,8 +7,8 @@
     {
       "name": "usage-guard",
       "source": ".",
-      "description": "Warns you in-session when you're burning through your Claude Code usage fast, plus a /usage command. Zero deps; local-only.",
-      "version": "0.1.0"
+      "description": "Warns you in-session as you near your real Claude Code plan limits (5h + weekly), with a weighted-budget fallback and a /usage command. Zero deps; no network.",
+      "version": "0.2.0"
     }
   ]
 }

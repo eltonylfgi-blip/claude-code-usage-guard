@@ -15,6 +15,17 @@ function fmt(n) {
   return String(n);
 }
 
+// "in 2h 10m" / "in 45m" until an epoch-seconds reset. Returns "" if unknown/past.
+function fmtReset(resetsAtSec) {
+  if (!Number.isFinite(resetsAtSec)) return "";
+  const sec = resetsAtSec - Math.floor(Date.now() / 1000);
+  if (sec <= 0) return "";
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  if (h > 0) return ` · resets in ${h}h ${m}m`;
+  return ` · resets in ${m}m`;
+}
+
 function statePath() {
   const base = process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude");
   return join(base, ".usage-guard-state.json");
@@ -38,40 +49,70 @@ function writeState(s) {
 
 async function main() {
   // Import inside the try so an evaluation-time throw in a lib still fails open.
-  const { collect, summarize } = await import("../lib/engine.mjs");
+  const { collect, summarize, readLimits } = await import("../lib/engine.mjs");
   const { loadConfig } = await import("../lib/config.mjs");
 
   const cfg = loadConfig();
   if (cfg.quiet) return; // disabled by user
 
   const now = Date.now();
-  const windowMs = cfg.windowHours * 3600_000;
-  const events = collect({ sinceMs: now - windowMs });
-  if (!events.length) return;
-
-  const s = summarize(events);
-  // current pace = weighted spend in the last hour (more honest than span-based rate)
-  const hourCut = now - 3600_000;
-  let rate = 0;
-  for (const e of events) if (e.ts >= hourCut) rate += e.weight;
 
   // Build candidate warnings, most important first.
   const candidates = [];
-  if (cfg.weightBudget > 0) {
-    const pct = s.weight / cfg.weightBudget;
-    if (pct >= cfg.warnPct) {
-      const over = pct >= 1;
+
+  // ---- PRIMARY: real plan quota (5h / 7d), if the statusLine shim captured it -------------
+  // This is Claude Code's actual `rate_limits`, not a hand-set proxy. When present it wins:
+  // we warn on the real plan window(s) and skip the weighted-budget path entirely.
+  const limits = readLimits();
+  if (limits) {
+    const planPct = Math.round(cfg.planWarnPct * 100);
+    const consider = (label, win) => {
+      if (!win || !Number.isFinite(win.usedPct)) return;
+      if (win.usedPct < planPct) return;
+      const over = win.usedPct >= 100;
       candidates.push({
-        kind: "budget",
+        kind: "plan",
         msg:
-          (over ? "🛑 Over budget: " : "⚠️ Near budget: ") +
-          `${Math.round(pct * 100)}% (${fmt(s.weight)} of ${fmt(cfg.weightBudget)}) in ${cfg.windowHours}h`,
+          (over ? "🛑 " : "⚠️ ") +
+          `Plan ${label} quota: ${Math.round(win.usedPct)}% used${fmtReset(win.resetsAt)}`,
       });
+    };
+    // 5h is the tighter/more urgent window, so consider it first (higher priority).
+    consider("5h", limits.fiveHour);
+    consider("weekly", limits.sevenDay);
+  }
+
+  // ---- FALLBACK: weighted-budget proxy from transcripts ----------------------------------
+  // Used when there's no real-quota snapshot (statusLine not wired, or pre-first-response /
+  // non-subscriber session). Also still honors an explicit burn-rate cap regardless.
+  if (!candidates.length || cfg.burnRatePerHour > 0) {
+    const windowMs = cfg.windowHours * 3600_000;
+    const events = collect({ sinceMs: now - windowMs });
+    if (events.length) {
+      const s = summarize(events);
+      // current pace = weighted spend in the last hour (more honest than span-based rate)
+      const hourCut = now - 3600_000;
+      let rate = 0;
+      for (const e of events) if (e.ts >= hourCut) rate += e.weight;
+
+      if (!candidates.length && cfg.weightBudget > 0) {
+        const pct = s.weight / cfg.weightBudget;
+        if (pct >= cfg.warnPct) {
+          const over = pct >= 1;
+          candidates.push({
+            kind: "budget",
+            msg:
+              (over ? "🛑 Over budget: " : "⚠️ Near budget: ") +
+              `${Math.round(pct * 100)}% (${fmt(s.weight)} of ${fmt(cfg.weightBudget)}) in ${cfg.windowHours}h`,
+          });
+        }
+      }
+      if (cfg.burnRatePerHour > 0 && rate >= cfg.burnRatePerHour) {
+        candidates.push({ kind: "rate", msg: `⚠️ Burning fast: ${fmt(rate)}/h (limit ${fmt(cfg.burnRatePerHour)}/h)` });
+      }
     }
   }
-  if (cfg.burnRatePerHour > 0 && rate >= cfg.burnRatePerHour) {
-    candidates.push({ kind: "rate", msg: `⚠️ Burning fast: ${fmt(rate)}/h (limit ${fmt(cfg.burnRatePerHour)}/h)` });
-  }
+
   if (!candidates.length) return;
 
   // Global throttle: after any warning, stay quiet for throttleMinutes so back-to-back
