@@ -2,6 +2,8 @@
 
 A tiny [Claude Code](https://code.claude.com) plugin that **warns you in-session as you approach your real plan limits** (the 5-hour and weekly rolling quotas) — with concrete numbers, a burn-rate proxy, and a `/usage-guard:usage` command to check anytime.
 
+![usage-guard: an in-session warning when your 5h plan quota crosses your threshold, then the /usage-guard:usage breakdown](assets/demo.gif)
+
 It runs in two modes, automatically:
 
 - **Primary — real plan quota.** If you wire up the tiny status-line shim (one line in your settings, below), Claude Code hands it your actual `rate_limits` (5-hour + weekly `used_percentage` and reset times). usage-guard snapshots that locally and warns when a window crosses your threshold: `⚠️ Plan 5h quota: 88% used · resets in 1h 29m`.
