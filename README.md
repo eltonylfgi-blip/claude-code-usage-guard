@@ -1,8 +1,14 @@
 # usage-guard
 
+![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg) ![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-5A45FF) ![Zero dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen) ![No network calls](https://img.shields.io/badge/network%20calls-none-brightgreen)
+
+Claude Code will cut you off mid-task when you hit your 5-hour or weekly limit. **usage-guard warns you *before* that happens, right in the session.**
+
 A tiny [Claude Code](https://code.claude.com) plugin that **warns you in-session as you approach your real plan limits** (the 5-hour and weekly rolling quotas) — with concrete numbers, a burn-rate proxy, and a `/usage-guard:usage` command to check anytime.
 
 ![usage-guard: an in-session warning when your 5h plan quota crosses your threshold, then the /usage-guard:usage breakdown](assets/demo.gif)
+
+*Top: the `Stop`-hook warning firing as the 5h plan quota crosses your threshold. Bottom: `/usage-guard:usage` showing the full breakdown.*
 
 It runs in two modes, automatically:
 
@@ -15,6 +21,8 @@ Either way it's **quiet** (warns once, then a cooldown — no spam) and **safe**
 
 > **How is this different from [ccusage](https://github.com/ryoppippi/ccusage)?** ccusage is a great *reporting* CLI you run to see a breakdown. usage-guard is a *proactive guard*: it nudges you **in the moment**, inside the session, as you near a limit. Use both.
 
+> **What about status-line usage monitors (claude-powerline, Claude Code Usage Monitor, …)?** Those display usage passively — you have to look at them. usage-guard actively **interrupts** via the `Stop` hook when a threshold is crossed, so you don't have to remember to check. (Its own status-line shim is just a snapshot mechanism, not a display — it keeps whatever status line you already have.)
+
 ## Install
 
 ```
@@ -22,7 +30,7 @@ Either way it's **quiet** (warns once, then a cooldown — no spam) and **safe**
 /plugin install usage-guard@cc-guard
 ```
 
-The `Stop` hook (the part that warns you) is active immediately. To unlock the **real plan quota** mode, do the one-time status-line wiring below.
+The `Stop` hook is active immediately — you get the fallback (weighted-budget) warnings right away. The headline **real plan quota** mode (what's in the GIF) needs one extra one-time step: the status-line wiring below (~30 seconds).
 
 ### Enable real plan quota (one-time, ~30 seconds)
 
@@ -124,6 +132,7 @@ Cache reads are ~10× cheaper, so they count at 0.1. **It's a proxy for how much
 - `hooks/usage-guard-statusline.mjs` — runs as your status line; snapshots Claude Code's real `rate_limits` to `~/.claude/.usage-guard-limits.json` and reprints your status line. No network.
 - `hooks/usage-guard-hook.mjs` — the `Stop` hook. Prefers the captured real quota; falls back to the weighted budget. Emits at most one warning, throttled, fail-open.
 - `lib/engine.mjs` — scans local transcripts, sums tokens, computes the weighted proxy, and reads the captured limits. (Importable + a CLI.)
+- **Fast and capped:** the engine only parses transcript files *modified within the window* (default 5h), not your full history — measured ~0.4s end-to-end on a heavy setup (1,500 transcripts / 355 MB). The hook is hard-capped at 5s and fail-open either way.
 - `lib/config.mjs` — loads your `usage-guard.json` with safe defaults.
 - `skills/usage/SKILL.md` — the `/usage-guard:usage` status command.
 
