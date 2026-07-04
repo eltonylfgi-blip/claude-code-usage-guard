@@ -147,7 +147,7 @@ Cache reads are ~10× cheaper, so they count at 0.1. **It's a proxy for how much
 
 ## Roadmap
 
-Short and honest — see [ROADMAP.md](./ROADMAP.md). Suggestions and real-world reports (especially of the new real-quota capture) are the most useful contribution right now. The rules this tool is built to — local-first, fail-open, warn-don't-block — are in [DESIGN_PRINCIPLES.md](./DESIGN_PRINCIPLES.md).
+Short and honest — see [ROADMAP.md](./ROADMAP.md). Suggestions and real-world reports (especially of the new real-quota capture) are the most useful contribution right now. The constraints this tool is built under — local-first, fail-open, warn-don't-block — are in [ENGINEERING_PRINCIPLES.md](./ENGINEERING_PRINCIPLES.md), each with where it's implemented.
 
 ## Part of a small suite
 
