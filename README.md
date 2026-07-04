@@ -145,6 +145,20 @@ Cache reads are ~10× cheaper, so they count at 0.1. **It's a proxy for how much
 - **Desktop app (manual):** delete the `Stop`-hook block (and the `statusLine` block) from `~/.claude/settings.json` and restart.
 - **Cleanup (optional):** delete `~/.claude/.usage-guard-state.json`, `~/.claude/.usage-guard-limits.json`, and `~/.claude/usage-guard.json`.
 
+## Roadmap
+
+Short and honest — see [ROADMAP.md](./ROADMAP.md). Suggestions and real-world reports (especially of the new real-quota capture) are the most useful contribution right now.
+
+## Part of a small suite
+
+I run Claude Code heavily, across many parallel sessions, and publish the friction-removers that come out of that as small, local-first tools:
+
+- **[usage-guard](https://github.com/eltonylfgi-blip/claude-code-usage-guard)** *(this repo)* — in-session warnings before the 5-hour/weekly plan quota cuts you off.
+- **[claude-session-triage](https://github.com/eltonylfgi-blip/claude-session-triage)** — finds every idle Claude Code session across your projects and reports what each one was still waiting on.
+- **[claude-usage-pacer](https://github.com/eltonylfgi-blip/claude-usage-pacer)** — a single-file local web app to pace your weekly quota so it lasts until the reset.
+
+Same philosophy in all three: solve one real daily problem, keep it tiny, nothing leaves your machine.
+
 ## License
 
 MIT
