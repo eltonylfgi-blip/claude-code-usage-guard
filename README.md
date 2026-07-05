@@ -1,6 +1,6 @@
 # usage-guard
 
-![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg) ![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-5A45FF) ![Zero dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen) ![No network calls](https://img.shields.io/badge/network%20calls-none-brightgreen)
+![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg) ![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-5A45FF) ![Zero dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen) ![No network calls](https://img.shields.io/badge/network%20calls-none-brightgreen) ![Tests: 11/11](https://img.shields.io/badge/tests-11%2F11-brightgreen)
 
 Claude Code will cut you off mid-task when you hit your 5-hour or weekly limit. **usage-guard warns you *before* that happens, right in the session.**
 
@@ -137,6 +137,14 @@ Cache reads are ~10× cheaper, so they count at 0.1. **It's a proxy for how much
 - `skills/usage/SKILL.md` — the `/usage-guard:usage` status command.
 
 > State files live in your Claude config dir: `~/.claude/.usage-guard-limits.json` (latest real-quota snapshot) and `~/.claude/.usage-guard-state.json` (throttle memory). Both are best-effort and safe to delete.
+
+## Tests
+
+```bash
+npm test
+```
+
+11 zero-dependency checks (`node:assert` only, throwaway fixtures under your temp dir — never touches your real `~/.claude`). They pin the behaviors this README claims: the weighting formula, the per-`requestId` dedup that prevents 2–4× inflation, fail-open parsing of corrupt/partial transcript lines, the sub-10-minute burn-rate guard, and the real-quota snapshot clamping/staleness. If you send a real-world `rate_limits` report, it becomes a new fixture here.
 
 ## Uninstall / disable
 

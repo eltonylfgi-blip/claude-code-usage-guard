@@ -36,4 +36,4 @@ Six constraints every tool I publish is built under ([usage-guard](https://githu
 
 **Why it exists:** if it only lives in a chat, it doesn't exist — an improvement must survive the conversation that produced it.
 
-**Where it appears:** session-triage's 📍 convention and its 10-test fixture suite; usage-guard's roadmap rule that every field report becomes a fixture and a test; these repos themselves.
+**Where it appears:** usage-guard's own 11-check self-test (`npm test`) pins the weighting formula, the anti-inflation dedup, fail-open parsing, and the real-quota clamping; session-triage's 📍 convention and its fixture suite; the roadmap rule that every field report becomes a fixture and a test. These repos are the artifact.
