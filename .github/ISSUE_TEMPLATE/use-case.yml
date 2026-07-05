@@ -1,0 +1,41 @@
+name: "Use case / request"
+description: "Tell us how you use usage-guard — or what would make it useful for you. Takes ~1 minute."
+title: "[use-case]: "
+labels: ["lead"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking a minute — real use cases directly shape what gets built next.
+  - type: textarea
+    id: use-case
+    attributes:
+      label: What are you using usage-guard for (or trying to)?
+      placeholder: 'e.g. "I keep hitting the 5-hour cap mid-task on the Pro plan and want a warning before it happens."'
+    validations:
+      required: true
+  - type: textarea
+    id: pain
+    attributes:
+      label: What is still painful or missing?
+      placeholder: 'e.g. "I would want the warning earlier, or a weekly budget per project."'
+    validations:
+      required: false
+  - type: dropdown
+    id: interest
+    attributes:
+      label: If a more advanced version existed (budgets, alerts, team view), would you use it?
+      options:
+        - "Yes — I'd use a free version"
+        - "Yes — I'd consider paying for it"
+        - "No — the plugin is enough"
+        - "Not sure"
+    validations:
+      required: false
+  - type: input
+    id: contact
+    attributes:
+      label: Contact (optional)
+      description: Email / X / GitHub handle if you'd like to hear back when this ships.
+    validations:
+      required: false
