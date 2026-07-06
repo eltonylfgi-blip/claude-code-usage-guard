@@ -16,3 +16,5 @@ Direction-level and honest — no promised dates. Ordered by what users hit firs
 
 - **Cloud anything.** The core stays zero-dependency, local-only, no network calls.
 - **A dashboard.** usage-guard interrupts you when it matters; [ccusage](https://github.com/ryoppippi/ccusage) and the status-line monitors already do passive display well.
+
+- **ETA-to-cutoff** *(suggested by an external review, 2026-07-06)*: beyond the even-pace readout, show "at this rate you run out in ~40m" — needs ≥2 quota snapshots to derive a real plan-burn rate (the current burn-rate proxy is transcript-weighted, not plan-%). Small pure function + state; high perceived value.
