@@ -47,6 +47,12 @@ Add a `statusLine` block to `~/.claude/settings.json` (Windows: `%USERPROFILE%\.
 }
 ```
 
+**Don't want to hunt for the path?** This one-liner finds your installed copy and prints the exact block to paste (works in bash, zsh and PowerShell):
+
+```bash
+node -e "const fs=require('fs'),p=require('path'),os=require('os');const root=p.join(os.homedir(),'.claude','plugins');let hit;(function w(d){let es;try{es=fs.readdirSync(d,{withFileTypes:true})}catch(e){return}for(const x of es){if(x.name==='node_modules'||x.name==='.git')continue;const f=p.join(d,x.name);if(x.isDirectory())w(f);else if(x.name==='usage-guard-statusline.mjs')hit=f}})(root);if(hit){console.log('Paste this into ~/.claude/settings.json:');console.log(JSON.stringify({statusLine:{type:'command',command:'node \"'+hit+'\"'}},null,2))}else console.log('usage-guard not found under '+root+' — run /plugin install first')"
+```
+
 - **Already have a status line?** Don't lose it — set `USAGE_GUARD_STATUSLINE` to your existing command and the shim re-runs it after snapshotting, so your line still renders:
   ```json
   {
