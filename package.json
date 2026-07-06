@@ -1,6 +1,6 @@
 {
   "name": "claude-code-usage-guard",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A Claude Code plugin that warns you in-session as you approach your real plan limits (5h + weekly quota), with a weighted-budget fallback and a /usage command. Zero dependencies, no network calls.",
   "type": "module",
   "bin": {

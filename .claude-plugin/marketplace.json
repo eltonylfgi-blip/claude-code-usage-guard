@@ -1,6 +1,6 @@
 {
   "name": "cc-guard",
-  "description": "Tools that keep Claude Code sessions cheap and predictable — starting with usage-guard, an in-session warner for your real plan limits.",
+  "description": "Tools that keep Claude Code sessions cheap and predictable \u2014 starting with usage-guard, an in-session warner for your real plan limits.",
   "owner": {
     "name": "eltonylfgi-blip"
   },
@@ -9,7 +9,7 @@
       "name": "usage-guard",
       "source": ".",
       "description": "Warns you in-session as you near your real Claude Code plan limits (5h + weekly), with a weighted-budget fallback and a /usage command. Zero deps; no network.",
-      "version": "0.2.0"
+      "version": "0.2.1"
     }
   ]
 }

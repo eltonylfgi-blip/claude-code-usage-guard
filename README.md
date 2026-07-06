@@ -4,7 +4,7 @@
 
 Claude Code will cut you off mid-task when you hit your 5-hour or weekly limit. **usage-guard warns you *before* that happens, right in the session.**
 
-A tiny [Claude Code](https://code.claude.com) plugin that **warns you in-session as you approach your real plan limits** (the 5-hour and weekly rolling quotas) — with concrete numbers, a burn-rate proxy, and a `/usage-guard:usage` command to check anytime.
+A tiny [Claude Code](https://code.claude.com) plugin that **warns you in-session as you approach your real plan limits** (the 5-hour and weekly rolling quotas) — with concrete numbers, an **even-pace readout** (are you ahead of or behind an even split of your week — should you slow down or push?), a burn-rate proxy, and a `/usage-guard:usage` command to check anytime.
 
 ![usage-guard: an in-session warning when your 5h plan quota crosses your threshold, then the /usage-guard:usage breakdown](assets/demo.gif)
 
@@ -17,7 +17,7 @@ It runs in two modes, automatically:
 
 Either way it's **quiet** (warns once, then a cooldown — no spam) and **safe** (zero dependencies; reads only local files; **no network calls**; fail-open with a 5s cap, so it can't disrupt your session).
 
-> **Doesn't Claude Code already warn me about the 5-hour limit?** Yes — it shows a native heads-up near the limit. usage-guard's added value is **concrete numbers in-session** (exact % for *both* the 5h and weekly windows + reset countdown), the **weighted burn-rate** fallback when real quota isn't present, and `/usage-guard:usage` to pull the numbers on demand. If you only want the native nudge, you don't need this.
+> **Doesn't Claude Code already warn me about the 5-hour limit?** Yes — it shows a native heads-up near the limit. The difference: the native nudge tells you you're **near the cliff**; usage-guard tells you **how to pace the window so you never reach it**. You get an even-pace readout (`68% used · 18% ahead of even pace — slow down to make it last`) for *both* the 5h and weekly windows, exact % + reset countdown, the **weighted burn-rate** fallback when real quota isn't present, and `/usage-guard:usage` on demand. If you only want the native nudge, you don't need this.
 
 > **How is this different from [ccusage](https://github.com/ryoppippi/ccusage)?** ccusage is a great *reporting* CLI you run to see a breakdown. usage-guard is a *proactive guard*: it nudges you **in the moment**, inside the session, as you near a limit. Use both.
 

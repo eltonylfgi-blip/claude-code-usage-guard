@@ -49,7 +49,7 @@ function writeState(s) {
 
 async function main() {
   // Import inside the try so an evaluation-time throw in a lib still fails open.
-  const { collect, summarize, readLimits } = await import("../lib/engine.mjs");
+  const { collect, summarize, readLimits, pace, paceTag, WINDOW_SEC } = await import("../lib/engine.mjs");
   const { loadConfig } = await import("../lib/config.mjs");
 
   const cfg = loadConfig();
@@ -66,20 +66,24 @@ async function main() {
   const limits = readLimits();
   if (limits) {
     const planPct = Math.round(cfg.planWarnPct * 100);
-    const consider = (label, win) => {
+    const consider = (label, win, winSec) => {
       if (!win || !Number.isFinite(win.usedPct)) return;
       if (win.usedPct < planPct) return;
       const over = win.usedPct >= 100;
+      // Pace readout: the native heads-up says you're near the cliff; this says how to
+      // pace the rest of the window ("ahead of even pace — slow down" / "under — push").
+      const p = pace(win.usedPct, win.resetsAt, winSec);
+      const paceStr = p ? ` · ${paceTag(p)}` : "";
       candidates.push({
         kind: "plan",
         msg:
           (over ? "🛑 " : "⚠️ ") +
-          `Plan ${label} quota: ${Math.round(win.usedPct)}% used${fmtReset(win.resetsAt)}`,
+          `Plan ${label} quota: ${Math.round(win.usedPct)}% used${fmtReset(win.resetsAt)}${paceStr}`,
       });
     };
     // 5h is the tighter/more urgent window, so consider it first (higher priority).
-    consider("5h", limits.fiveHour);
-    consider("weekly", limits.sevenDay);
+    consider("5h", limits.fiveHour, WINDOW_SEC.fiveHour);
+    consider("weekly", limits.sevenDay, WINDOW_SEC.sevenDay);
   }
 
   // ---- FALLBACK: weighted-budget proxy from transcripts ----------------------------------

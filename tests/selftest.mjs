@@ -12,7 +12,7 @@ import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { weigh, collect, summarize, readLimits, limitsPath } from "../lib/engine.mjs";
+import { weigh, collect, summarize, readLimits, limitsPath, pace, paceTag, WINDOW_SEC } from "../lib/engine.mjs";
 import { loadConfig, DEFAULTS } from "../lib/config.mjs";
 
 let pass = 0;
@@ -188,6 +188,36 @@ check("loadConfig: clamps bad values", () => {
   } finally {
     process.env.CLAUDE_CONFIG_DIR = prev;
   }
+});
+
+// ---- pace: even-pace math (backs the "should I slow down or push?" readout) ----
+check("pace: ahead of even split is flagged with the right delta", () => {
+  // weekly window, half elapsed (reset in 3.5d), 68% used -> expected 50%, delta +18
+  const now = 1_000_000_000;
+  const p = pace(68, now + 3.5 * 24 * 3600, WINDOW_SEC.sevenDay, now);
+  assert.ok(p, "pace computable");
+  assert.equal(Math.round(p.expectedPct), 50);
+  assert.equal(Math.round(p.deltaPct), 18);
+  assert.ok(paceTag(p).includes("ahead"), "tag says ahead / slow down");
+});
+check("pace: under even split says there is room to push", () => {
+  const now = 1_000_000_000;
+  // 5h window, 80% elapsed (resets in 1h), only 40% used -> expected 80%, delta -40
+  const p = pace(40, now + 3600, WINDOW_SEC.fiveHour, now);
+  assert.equal(Math.round(p.expectedPct), 80);
+  assert.ok(paceTag(p).includes("under"), "tag says under / room to push");
+});
+check("pace: within ±5% reads as on pace", () => {
+  const now = 1_000_000_000;
+  const p = pace(52, now + 3.5 * 24 * 3600, WINDOW_SEC.sevenDay, now); // expected 50, delta +2
+  assert.equal(paceTag(p), "on pace");
+});
+check("pace: returns null when it cannot be honest (no reset, past reset, misaligned)", () => {
+  const now = 1_000_000_000;
+  assert.equal(pace(50, NaN, WINDOW_SEC.sevenDay, now), null, "no reset timestamp");
+  assert.equal(pace(50, now - 10, WINDOW_SEC.sevenDay, now), null, "reset already past");
+  assert.equal(pace(50, now + 10 * 24 * 3600, WINDOW_SEC.sevenDay, now), null, "reset beyond window");
+  assert.equal(paceTag(null), "", "null pace renders as empty string");
 });
 
 // ---- report --------------------------------------------------------------

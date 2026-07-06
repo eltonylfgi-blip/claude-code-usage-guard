@@ -1,11 +1,17 @@
 {
   "name": "usage-guard",
   "description": "Warns you in-session as you approach your real Claude Code plan limits (5h + weekly quota), with a weighted-budget fallback and a /usage command to check anytime. Zero dependencies; no network calls.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": {
     "name": "eltonylfgi-blip"
   },
   "homepage": "https://github.com/eltonylfgi-blip/claude-code-usage-guard",
   "license": "MIT",
-  "keywords": ["usage", "tokens", "budget", "hooks", "cost"]
+  "keywords": [
+    "usage",
+    "tokens",
+    "budget",
+    "hooks",
+    "cost"
+  ]
 }
