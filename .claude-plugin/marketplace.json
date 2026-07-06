@@ -1,5 +1,6 @@
 {
   "name": "cc-guard",
+  "description": "Tools that keep Claude Code sessions cheap and predictable — starting with usage-guard, an in-session warner for your real plan limits.",
   "owner": {
     "name": "eltonylfgi-blip"
   },
