@@ -6,6 +6,8 @@ Claude Code will cut you off mid-task when you hit your 5-hour or weekly limit. 
 
 A tiny [Claude Code](https://code.claude.com) plugin that **warns you in-session as you approach your real plan limits** (the 5-hour and weekly rolling quotas) — with concrete numbers, an **even-pace readout** (are you ahead of or behind an even split of your week — should you slow down or push?), a burn-rate proxy, and a `/usage-guard:usage` command to check anytime.
 
+> **Why right now (July 2026):** Anthropic [reset everyone's 5-hour and weekly limits on July 9](https://x.com/ClaudeDevs/status/2075279141352706215), and weekly caps are expected to change again around July 13. A fresh quota window is easy to burn in one afternoon. Pacing it is the whole point of this plugin.
+
 ![usage-guard: an in-session warning with the even-pace readout — 18% ahead of even pace, slow down to make it last — then the /usage-guard:usage breakdown](assets/demo.gif)
 
 *Top: the `Stop`-hook warning with the even-pace readout (should you slow down or push?). Bottom: `/usage-guard:usage` showing the full breakdown.*
