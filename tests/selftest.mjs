@@ -11,6 +11,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { execSync } from "node:child_process";
 
 import { weigh, collect, summarize, readLimits, limitsPath, pace, paceTag, WINDOW_SEC } from "../lib/engine.mjs";
 import { loadConfig, DEFAULTS } from "../lib/config.mjs";
@@ -218,6 +219,192 @@ check("pace: returns null when it cannot be honest (no reset, past reset, misali
   assert.equal(pace(50, now - 10, WINDOW_SEC.sevenDay, now), null, "reset already past");
   assert.equal(pace(50, now + 10 * 24 * 3600, WINDOW_SEC.sevenDay, now), null, "reset beyond window");
   assert.equal(paceTag(null), "", "null pace renders as empty string");
+});
+
+// ---- usage-guard-check.mjs ------------------------------------------------
+// Run the CLI gate script with a temp CLAUDE_CONFIG_DIR.
+function runCheck(args, { CLAUDE_CONFIG_DIR } = {}) {
+  const env = { ...process.env };
+  if (CLAUDE_CONFIG_DIR) env.CLAUDE_CONFIG_DIR = CLAUDE_CONFIG_DIR;
+  try {
+    const out = execSync(`node hooks/usage-guard-check.mjs ${args}`, { encoding: "utf8", env, timeout: 5000 });
+    return { code: 0, out: out.trim() };
+  } catch (e) {
+    return { code: e.status ?? 1, out: (e.stdout ?? "").trim() };
+  }
+}
+
+// 12. usage-guard-check.mjs: missing file -> exit 0, prints fail-open line
+check("check: missing file -> exit 0 + fail-open line", () => {
+  const dir = freshConfigDir();
+  const r = runCheck("", { CLAUDE_CONFIG_DIR: dir });
+  assert.equal(r.code, 0);
+  assert.ok(r.out.includes("no quota data (fail-open)"));
+});
+
+// 13. usage-guard-check.mjs: fresh data under thresholds -> exit 0
+check("check: fresh data under threshold -> exit 0", () => {
+  const dir = freshConfigDir();
+  const nowSec = Math.floor(Date.now() / 1000);
+  writeFileSync(join(dir, ".usage-guard-limits.json"), JSON.stringify({
+    capturedAt: nowSec,
+    fiveHour: { usedPct: 50, resetsAt: nowSec + 3600 },
+    sevenDay: { usedPct: 40, resetsAt: nowSec + 7 * 24 * 3600 }
+  }), "utf8");
+  const r = runCheck("--max-weekly 85 --max-5h 85", { CLAUDE_CONFIG_DIR: dir });
+  assert.equal(r.code, 0);
+  assert.equal(r.out, "");
+});
+
+// 14. usage-guard-check.mjs: fresh data over weekly threshold -> exit 1 + line
+check("check: fresh data over weekly threshold -> exit 1 + reason line", () => {
+  const dir = freshConfigDir();
+  const nowSec = Math.floor(Date.now() / 1000);
+  writeFileSync(join(dir, ".usage-guard-limits.json"), JSON.stringify({
+    capturedAt: nowSec,
+    sevenDay: { usedPct: 90, resetsAt: nowSec + 7 * 24 * 3600 }
+  }), "utf8");
+  const r = runCheck("--max-weekly 85", { CLAUDE_CONFIG_DIR: dir });
+  assert.equal(r.code, 1);
+  assert.ok(r.out.includes("weekly") && r.out.includes("90"));
+});
+
+// 15. usage-guard-check.mjs: fresh data over 5h threshold -> exit 1 + line
+check("check: fresh data over 5h threshold -> exit 1 + reason line", () => {
+  const dir = freshConfigDir();
+  const nowSec = Math.floor(Date.now() / 1000);
+  writeFileSync(join(dir, ".usage-guard-limits.json"), JSON.stringify({
+    capturedAt: nowSec,
+    fiveHour: { usedPct: 95, resetsAt: nowSec + 3600 }
+  }), "utf8");
+  const r = runCheck("--max-5h 85", { CLAUDE_CONFIG_DIR: dir });
+  assert.equal(r.code, 1);
+  assert.ok(r.out.includes("5h") && r.out.includes("95"));
+});
+
+// 16. usage-guard-check.mjs: stale data -> fail-open (exit 0 + line)
+check("check: stale snapshot -> exit 0 + fail-open line", () => {
+  const dir = freshConfigDir();
+  const staleSec = Math.floor(Date.now() / 1000) - 25 * 3600; // 25h old, default max-age 24h
+  writeFileSync(join(dir, ".usage-guard-limits.json"), JSON.stringify({
+    capturedAt: staleSec,
+    fiveHour: { usedPct: 99, resetsAt: Math.floor(Date.now() / 1000) + 3600 }
+  }), "utf8");
+  const r = runCheck("--max-5h 85", { CLAUDE_CONFIG_DIR: dir });
+  assert.equal(r.code, 0);
+  assert.ok(r.out.includes("no quota data (fail-open)"));
+});
+
+// 17. usage-guard-check.mjs: --quiet suppresses output on exit 1
+check("check: --quiet suppresses output on exit 1", () => {
+  const dir = freshConfigDir();
+  const nowSec = Math.floor(Date.now() / 1000);
+  writeFileSync(join(dir, ".usage-guard-limits.json"), JSON.stringify({
+    capturedAt: nowSec,
+    sevenDay: { usedPct: 90, resetsAt: nowSec + 7 * 24 * 3600 }
+  }), "utf8");
+  const r = runCheck("--max-weekly 85 --quiet", { CLAUDE_CONFIG_DIR: dir });
+  assert.equal(r.code, 1);
+  assert.equal(r.out, "");
+});
+
+// 17b. usage-guard-check.mjs: malformed flag value must NOT disable the gate
+check("check: malformed --max-weekly keeps the default (gate still stops)", () => {
+  const dir = freshConfigDir();
+  const nowSec = Math.floor(Date.now() / 1000);
+  writeFileSync(join(dir, ".usage-guard-limits.json"), JSON.stringify({
+    capturedAt: nowSec,
+    sevenDay: { usedPct: 90, resetsAt: nowSec + 7 * 24 * 3600 }
+  }), "utf8");
+  const r = runCheck("--max-weekly abc", { CLAUDE_CONFIG_DIR: dir }); // typo -> default 85 applies
+  assert.equal(r.code, 1);
+  assert.ok(r.out.includes("weekly") && r.out.includes("90"));
+});
+
+// ---- usage-guard-sessionstart.mjs -----------------------------------------
+function runSessionStart({ CLAUDE_CONFIG_DIR } = {}) {
+  const env = { ...process.env };
+  if (CLAUDE_CONFIG_DIR) env.CLAUDE_CONFIG_DIR = CLAUDE_CONFIG_DIR;
+  try {
+    const out = execSync(`node hooks/usage-guard-sessionstart.mjs`, { encoding: "utf8", env, timeout: 5000 });
+    return { code: 0, out: out.trim() };
+  } catch (e) {
+    return { code: e.status ?? 1, out: (e.stdout ?? "").trim() };
+  }
+}
+
+// 18. sessionstart: missing file -> exit 0, no output
+check("sessionstart: missing file -> exit 0, silent", () => {
+  const dir = freshConfigDir();
+  const r = runSessionStart({ CLAUDE_CONFIG_DIR: dir });
+  assert.equal(r.code, 0);
+  assert.equal(r.out, "");
+});
+
+// 19. sessionstart: fresh data under watch threshold (70) -> exit 0, silent
+check("sessionstart: fresh data under watch threshold -> exit 0, silent", () => {
+  const dir = freshConfigDir();
+  const nowSec = Math.floor(Date.now() / 1000);
+  writeFileSync(join(dir, ".usage-guard-limits.json"), JSON.stringify({
+    capturedAt: nowSec,
+    fiveHour: { usedPct: 50, resetsAt: nowSec + 3600 },
+    sevenDay: { usedPct: 40, resetsAt: nowSec + 7 * 24 * 3600 }
+  }), "utf8");
+  const r = runSessionStart({ CLAUDE_CONFIG_DIR: dir });
+  assert.equal(r.code, 0);
+  assert.equal(r.out, "");
+});
+
+// 20. sessionstart: fresh data at watch threshold (70) -> prints watch line
+check("sessionstart: fresh data at watch threshold (70%) -> prints watch line", () => {
+  const dir = freshConfigDir();
+  const nowSec = Math.floor(Date.now() / 1000);
+  writeFileSync(join(dir, ".usage-guard-limits.json"), JSON.stringify({
+    capturedAt: nowSec,
+    fiveHour: { usedPct: 70, resetsAt: nowSec + 3600 }
+  }), "utf8");
+  const r = runSessionStart({ CLAUDE_CONFIG_DIR: dir });
+  assert.equal(r.code, 0);
+  assert.ok(r.out.includes("⚠️") && r.out.includes("70%") && r.out.includes("5h"));
+});
+
+// 21. sessionstart: fresh data at critical threshold (85) -> prints critical line
+check("sessionstart: fresh data at critical threshold (85%) -> prints critical line", () => {
+  const dir = freshConfigDir();
+  const nowSec = Math.floor(Date.now() / 1000);
+  writeFileSync(join(dir, ".usage-guard-limits.json"), JSON.stringify({
+    capturedAt: nowSec,
+    sevenDay: { usedPct: 85, resetsAt: nowSec + 7 * 24 * 3600 }
+  }), "utf8");
+  const r = runSessionStart({ CLAUDE_CONFIG_DIR: dir });
+  assert.equal(r.code, 0);
+  assert.ok(r.out.includes("🛑") && r.out.includes("85%") && r.out.includes("weekly"));
+});
+
+// 22. sessionstart: stale data -> exit 0, silent
+check("sessionstart: stale snapshot -> exit 0, silent", () => {
+  const dir = freshConfigDir();
+  const staleSec = Math.floor(Date.now() / 1000) - 25 * 3600; // 25h old, max-age 24h
+  writeFileSync(join(dir, ".usage-guard-limits.json"), JSON.stringify({
+    capturedAt: staleSec,
+    fiveHour: { usedPct: 99, resetsAt: Math.floor(Date.now() / 1000) + 3600 }
+  }), "utf8");
+  const r = runSessionStart({ CLAUDE_CONFIG_DIR: dir });
+  assert.equal(r.code, 0);
+  assert.equal(r.out, "");
+});
+
+// 23. sessionstart: pace tag shows ahead/under/on-pace
+check("sessionstart: pace tag reflects even-pace delta", () => {
+  const dir = freshConfigDir();
+  const nowSec = Math.floor(Date.now() / 1000);
+  // 5h window, 80% elapsed (resets in 1h), 75% used -> expected 80%, delta -5 -> "under"
+  writeFileSync(join(dir, ".usage-guard-limits.json"), JSON.stringify({
+    capturedAt: nowSec,
+    fiveHour: { usedPct: 75, resetsAt: nowSec + 3600 }
+  }), "utf8");
+  const r = runSessionStart({ CLAUDE_CONFIG_DIR: dir });
+  assert.ok(r.out.includes("under even pace") || r.out.includes("room to push"));
 });
 
 // ---- report --------------------------------------------------------------

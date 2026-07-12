@@ -72,6 +72,53 @@ node -e "const fs=require('fs'),p=require('path'),os=require('os');const root=p.
 
 **Using the Claude Desktop app?** `/plugin` only exists in the terminal CLI. For the desktop app you wire the `Stop` hook (and optionally the status line) manually — see **[TUTORIAL.md](./TUTORIAL.md)**.
 
+## Your agents can pace themselves (machine-readable quota)
+
+Monitors show *humans* a dashboard. This lets your *automations* read the real quota and self-throttle — the angle no usage monitor covers.
+
+Two new scripts (in `hooks/`) give cron jobs, background agents, and CI pipelines a machine-readable gate and a session-start context line:
+
+### `usage-guard-check.mjs` — gate for crons / agents / CI
+
+```bash
+node hooks/usage-guard-check.mjs [--max-weekly 85] [--max-5h N] [--max-age-hours 24] [--quiet] && my-agent
+```
+
+- Reads the live snapshot `.usage-guard-limits.json` (same resolution as the status-line shim).
+- Exit codes: `0` = OK to run; `1` = stop (prints one line with reason + actual %, unless `--quiet`).
+- Missing / unreadable / stale snapshot = exit `0` with line `no quota data (fail-open)` — same fail-open spirit as the rest of the repo, zero deps, no network.
+- Flags:
+  - `--max-weekly N` — stop if weekly % ≥ N (default 85)
+  - `--max-5h N` — stop if 5h % ≥ N (default: no limit)
+  - `--max-age-hours N` — snapshot max age in hours (default 24)
+  - `--quiet` — exit 1 silently on stop (no output line)
+
+### `usage-guard-sessionstart.mjs` — hook for Claude Code `SessionStart`
+
+Add to your `settings.json` (or the plugin's `hooks.json`):
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      { "matcher": "*", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/usage-guard-sessionstart.mjs\"" }] }
+    ]
+  }
+}
+```
+
+- Prints **one line** at session start when a window is **≥70% used** — below that it stays completely silent (quiet by design, like the rest of the plugin):
+  `⚠️ Plan 5h quota: 78% used · resets in 2h 15m · 12% ahead of even pace — slow down to make it last`
+- Thresholds: ≥85% = critical (🛑), ≥70% = watch (⚠️), below 70% = no output.
+- No fresh data = completely silent too (exit 0, no output) — never breaks session start.
+
+### Exit codes for `usage-guard-check.mjs`
+
+| Code | Meaning |
+|------|---------|
+| `0` | OK — quota under thresholds (or no data, fail-open) |
+| `1` | Stop — a window crossed its threshold (prints reason unless `--quiet`) |
+
 ## Configure
 
 usage-guard reads `~/.claude/usage-guard.json` (create it). All fields are optional:
