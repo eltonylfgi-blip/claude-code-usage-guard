@@ -34,6 +34,10 @@ Either way it's **quiet** (warns once, then a cooldown — no spam) and **safe**
 
 The `Stop` hook is active immediately — you get the fallback (weighted-budget) warnings right away. The headline **real plan quota** mode (what's in the GIF) needs one extra one-time step: the status-line wiring below (~30 seconds).
 
+### Did it help? Tell me in 30 seconds
+
+If usage-guard saved a session, behaved unexpectedly, or its real-quota mode did (or didn't) appear, **[open a quick issue](https://github.com/eltonylfgi-blip/claude-code-usage-guard/issues/new)**. A Claude Code version and whether you enabled the status-line shim are enough. Real setup reports decide what gets improved next.
+
 ### Enable real plan quota (one-time, ~30 seconds)
 
 Claude Code only exposes your real `rate_limits` to a **status-line** command, never to a hook — so usage-guard ships a small status-line shim that snapshots them to a local file the hook reads. (This is a documented Claude Code limitation, not a workaround: a plugin can't auto-register a top-level `statusLine`, so you add the one line.)
