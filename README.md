@@ -36,7 +36,7 @@ The `Stop` hook is active immediately — you get the fallback (weighted-budget)
 
 ### Did it help? Tell me in 30 seconds
 
-If usage-guard saved a session, behaved unexpectedly, or its real-quota mode did (or didn't) appear, **[open a quick issue](https://github.com/eltonylfgi-blip/claude-code-usage-guard/issues/new)**. A Claude Code version and whether you enabled the status-line shim are enough. Real setup reports decide what gets improved next.
+If usage-guard saved a session, behaved unexpectedly, or its real-quota mode did (or didn't) appear, **[send a 30-second field report](https://github.com/eltonylfgi-blip/claude-code-usage-guard/issues/new?template=use-case.yml)**. One sentence is enough; a Claude Code version and whether you enabled the status-line shim help diagnose setup-specific behavior. Real reports decide what gets improved next.
 
 ### Enable real plan quota (one-time, ~30 seconds)
 

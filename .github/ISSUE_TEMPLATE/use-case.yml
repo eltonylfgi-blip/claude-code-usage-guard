@@ -1,24 +1,37 @@
-name: "Use case / request"
-description: "Tell us how you use usage-guard — or what would make it useful for you. Takes ~1 minute."
-title: "[use-case]: "
+name: "Field report / problem / use case"
+description: "Tell us what helped, failed, or would make usage-guard useful. Takes ~30 seconds."
+title: "[field-report]: "
 labels: ["lead"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking a minute — real use cases directly shape what gets built next.
-  - type: textarea
-    id: use-case
+        Thanks — real setup reports decide what gets fixed or built next. One sentence is enough. Please redact tokens, account IDs, and other secrets.
+  - type: dropdown
+    id: kind
     attributes:
-      label: What are you using usage-guard for (or trying to)?
-      placeholder: 'e.g. "I keep hitting the 5-hour cap mid-task on the Pro plan and want a warning before it happens."'
+      label: What kind of report is this?
+      options:
+        - "It helped or saved a session"
+        - "Something behaved unexpectedly"
+        - "Real quota mode did not appear"
+        - "Feature or use case request"
+        - "Other"
     validations:
       required: true
   - type: textarea
-    id: pain
+    id: details
     attributes:
-      label: What is still painful or missing?
-      placeholder: 'e.g. "I would want the warning earlier, or a weekly budget per project."'
+      label: What happened, or what are you trying to do?
+      placeholder: 'e.g. "It warned me before a long task" or "The weekly line did not appear after setup."'
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment (optional)
+      description: Claude Code version, OS, plan, and whether you enabled the status-line shim.
+      placeholder: "Claude Code 1.x, Windows, Pro, shim enabled"
     validations:
       required: false
   - type: dropdown

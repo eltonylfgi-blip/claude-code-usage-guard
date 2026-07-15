@@ -8,7 +8,7 @@
 // throwaway fixtures under the OS temp dir, so it never touches your real ~/.claude.
 
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execSync } from "node:child_process";
@@ -405,6 +405,20 @@ check("sessionstart: pace tag reflects even-pace delta", () => {
   }), "utf8");
   const r = runSessionStart({ CLAUDE_CONFIG_DIR: dir });
   assert.ok(r.out.includes("under even pace") || r.out.includes("room to push"));
+});
+
+// The feedback flywheel must stay one click from the README and accept success,
+// failure, missing real-quota data, and use-case reports through the same form.
+check("feedback: README routes directly to the universal field-report form", () => {
+  const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+  const form = readFileSync(new URL("../.github/ISSUE_TEMPLATE/use-case.yml", import.meta.url), "utf8");
+  assert.match(readme, /issues\/new\?template=use-case\.yml/);
+  assert.match(form, /id: kind/);
+  assert.match(form, /It helped or saved a session/);
+  assert.match(form, /Something behaved unexpectedly/);
+  assert.match(form, /Real quota mode did not appear/);
+  assert.match(form, /id: details/);
+  assert.match(form, /Please redact tokens, account IDs, and other secrets/);
 });
 
 // ---- report --------------------------------------------------------------
