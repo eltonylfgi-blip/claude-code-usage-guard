@@ -1,4 +1,4 @@
-﻿# usage-guard
+# usage-guard
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg) ![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-5A45FF) ![Zero dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen) ![Network off by default](https://img.shields.io/badge/network-off%20by%20default-brightgreen) ![Tests: 46/46](https://img.shields.io/badge/tests-46%2F46-brightgreen)
 
@@ -32,6 +32,16 @@ Either way it's **quiet** (one alert per event, plus a warning cooldown) and **s
 /plugin marketplace add eltonylfgi-blip/claude-code-usage-guard
 /plugin install usage-guard@cc-guard
 ```
+
+### Choose your setup path
+
+**DIY â€” free.** Enable the real 5-hour + weekly quota reading below. Setup is complete when `/usage-guard:usage` starts with:
+
+`Real plan quota`
+
+**Hands-on â€” 7.20 EUR Â· 3 pilot spots.** I help you connect the real-quota capture, verify a valid 5-hour + weekly reading on your machine, and calibrate the warning threshold for your plan. **Full refund if we cannot get a valid real-quota reading.**
+
+[Get my real quota working ->](https://eltonylfgi.gumroad.com/l/sqviyh)
 
 The `Stop` hook is active immediately â€” you get the fallback (weighted-budget) warnings right away. The headline **real plan quota** mode (what's in the GIF) needs one extra one-time step: the status-line wiring below (~30 seconds).
 
@@ -75,9 +85,6 @@ node -e "const fs=require('fs'),p=require('path'),os=require('os');const root=p.
 
 > **Heads-up â€” this real-quota mode is new.** The `rate_limits` shape it reads follows the [official Claude Code status-line schema](https://code.claude.com/docs/en/statusline), but the end-to-end live capture hasn't been battle-tested across many setups yet. If a window doesn't surface for any reason, usage-guard simply falls back to the weighted proxy â€” it fails open and never breaks your session. Spotted something off? Issues/feedback welcome.
 
-> **usage-guard stays free.** Prefer to have it set up, verified and calibrated for your plan?
-> I'm testing **3 pilot hands-on setups at 7.20 EUR** (full refund if we can't get a valid real-quota
-> reading on your machine): **[Personal setup & real-quota verification](https://eltonylfgi.gumroad.com/l/sqviyh)**
 
 **Using the Claude Desktop app?** `/plugin` only exists in the terminal CLI. For the desktop app you wire the `Stop` hook (and optionally the status line) manually â€” see **[TUTORIAL.md](./TUTORIAL.md)**.
 
