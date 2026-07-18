@@ -1,7 +1,7 @@
 {
   "name": "usage-guard",
-  "description": "Warns you in-session as you approach your real Claude Code plan limits (5h + weekly quota), with a weighted-budget fallback and a /usage command to check anytime. Zero dependencies; no network calls.",
-  "version": "0.2.1",
+  "description": "Warns before real Claude Code plan limits and celebrates fresh 5h/weekly windows. Zero dependencies; network off unless optional ntfy is configured.",
+  "version": "0.4.0",
   "author": {
     "name": "eltonylfgi-blip"
   },

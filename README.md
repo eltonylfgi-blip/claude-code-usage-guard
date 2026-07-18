@@ -1,23 +1,24 @@
 # usage-guard
 
-![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg) ![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-5A45FF) ![Zero dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen) ![No network calls](https://img.shields.io/badge/network%20calls-none-brightgreen) ![Tests: 11/11](https://img.shields.io/badge/tests-11%2F11-brightgreen)
+![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg) ![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-5A45FF) ![Zero dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen) ![Network off by default](https://img.shields.io/badge/network-off%20by%20default-brightgreen) ![Tests: 46/46](https://img.shields.io/badge/tests-46%2F46-brightgreen)
 
 Claude Code will cut you off mid-task when you hit your 5-hour or weekly limit. **usage-guard warns you *before* that happens, right in the session.**
 
-A tiny [Claude Code](https://code.claude.com) plugin that **warns you in-session as you approach your real plan limits** (the 5-hour and weekly rolling quotas) — with concrete numbers, an **even-pace readout** (are you ahead of or behind an even split of your week — should you slow down or push?), a burn-rate proxy, and a `/usage-guard:usage` command to check anytime.
+A tiny [Claude Code](https://code.claude.com) plugin that **warns you in-session as you approach your real plan limits** and tells you when a fresh 5-hour or weekly window is ready. It includes concrete numbers, an **even-pace readout** (should you slow down or push?), a burn-rate proxy, and a `/usage-guard:usage` command to check anytime.
 
-> **Why right now (July 2026):** Anthropic [reset everyone's 5-hour and weekly limits on July 9](https://x.com/ClaudeDevs/status/2075279141352706215), and weekly caps are expected to change again around July 13. A fresh quota window is easy to burn in one afternoon. Pacing it is the whole point of this plugin.
+> **Why it matters:** a fresh quota window is easy to burn in one afternoon. Knowing both when it opens and whether your pace is sustainable makes that new allowance useful instead of accidental.
 
 ![usage-guard: an in-session warning with the even-pace readout — 18% ahead of even pace, slow down to make it last — then the /usage-guard:usage breakdown](assets/demo.gif)
 
 *Top: the `Stop`-hook warning with the even-pace readout (should you slow down or push?). Bottom: `/usage-guard:usage` showing the full breakdown.*
 
-It runs in two modes, automatically:
+It runs in two quota modes automatically, plus a fresh-window coach:
 
 - **Primary — real plan quota.** If you wire up the tiny status-line shim (one line in your settings, below), Claude Code hands it your actual `rate_limits` (5-hour + weekly `used_percentage` and reset times). usage-guard snapshots that locally and warns when a window crosses your threshold: `⚠️ Plan 5h quota: 88% used · resets in 1h 29m`.
 - **Fallback — weighted budget.** If the real quota isn't available (status-line not wired, or a session that hasn't had its first API response yet), it falls back to a budget **you** set against a "weighted spend" proxy read from local transcripts: `🛑 Over budget: 120% (6.0M of 5.0M) in 5h`.
+- **Fresh-window coach.** Once real quota is available, a conservative local detector announces each newly observed 5-hour or weekly window once: `🎉 ¡Cuota fresca! Ventana nueva lista (5h) — aprovéchala.`
 
-Either way it's **quiet** (warns once, then a cooldown — no spam) and **safe** (zero dependencies; reads only local files; **no network calls**; fail-open with a 5s cap, so it can't disrupt your session).
+Either way it's **quiet** (one alert per event, plus a warning cooldown) and **safe** (zero dependencies; reads local files; network is **off by default**; fail-open with a 5s cap). An optional `ntfy` reset alert is the only network path and runs only when you explicitly configure a topic.
 
 > **Doesn't Claude Code already warn me about the 5-hour limit?** Yes — it shows a native heads-up near the limit. The difference: the native nudge tells you you're **near the cliff**; usage-guard tells you **how to pace the window so you never reach it**. You get an even-pace readout (`68% used · 18% ahead of even pace — slow down to make it last`) for *both* the 5h and weekly windows, exact % + reset countdown, the **weighted burn-rate** fallback when real quota isn't present, and `/usage-guard:usage` on demand. If you only want the native nudge, you don't need this.
 
@@ -75,6 +76,22 @@ node -e "const fs=require('fs'),p=require('path'),os=require('os');const root=p.
 > **Heads-up — this real-quota mode is new.** The `rate_limits` shape it reads follows the [official Claude Code status-line schema](https://code.claude.com/docs/en/statusline), but the end-to-end live capture hasn't been battle-tested across many setups yet. If a window doesn't surface for any reason, usage-guard simply falls back to the weighted proxy — it fails open and never breaks your session. Spotted something off? Issues/feedback welcome.
 
 **Using the Claude Desktop app?** `/plugin` only exists in the terminal CLI. For the desktop app you wire the `Stop` hook (and optionally the status line) manually — see **[TUTORIAL.md](./TUTORIAL.md)**.
+
+## Know when your quota is fresh
+
+After the status-line shim has established one baseline snapshot, the `Stop` hook compares consecutive 5-hour and weekly windows. A first observation never fires. Small reset-time corrections stay silent. A real window advance or usage returning near zero produces one in-session celebration, then records that window so it cannot repeat:
+
+```text
+🎉 ¡Cuota fresca! Ventana nueva lista (5h + weekly) — aprovéchala.
+```
+
+The banner is on by default. Disable only this feature with `"resetCelebration": false`.
+
+### Optional phone alert with ntfy
+
+Phone delivery is off by default. To opt in, choose an unguessable [ntfy](https://ntfy.sh) topic and set either `"ntfyTopic": "your_private_topic"` in `usage-guard.json` or the `NTFY_TOPIC` environment variable. The environment variable wins when both exist.
+
+The destination is fixed to `https://ntfy.sh/<topic>`; URLs and slashes are rejected. The message contains only the cheerful reset text, never your usage percentage, account data, or transcript content. Delivery is best-effort with a short timeout, so a network problem cannot block Claude Code. Treat the topic name like a password because anyone who knows it can subscribe.
 
 ## Your agents can pace themselves (machine-readable quota)
 
@@ -134,7 +151,9 @@ usage-guard reads `~/.claude/usage-guard.json` (create it). All fields are optio
   "weightBudget": 8000000,
   "warnPct": 0.8,
   "burnRatePerHour": 2000000,
-  "throttleMinutes": 10
+  "throttleMinutes": 10,
+  "resetCelebration": true,
+  "ntfyTopic": ""
 }
 ```
 
@@ -146,7 +165,9 @@ usage-guard reads `~/.claude/usage-guard.json` (create it). All fields are optio
 | `warnPct` | `0.8` | *(Fallback)* Warn once you cross this fraction of `weightBudget`. |
 | `burnRatePerHour` | `0` (off) | Warn if your weighted spend **in the last hour** exceeds this. Independent of the modes above. |
 | `throttleMinutes` | `10` | Minimum gap between warnings. |
-| `quiet` | `false` | `true` disables all warnings (still computable via `/usage-guard:usage`). |
+| `resetCelebration` | `true` | Announce each newly observed 5h / weekly window once. Requires real-quota mode. |
+| `ntfyTopic` | `""` (off) | Optional reset alert through `ntfy.sh`; an `NTFY_TOPIC` environment variable overrides it. |
+| `quiet` | `false` | `true` records state but emits no warning, celebration, or phone alert; `/usage-guard:usage` still works. |
 
 In **real-quota mode** you don't need to guess a budget — `planWarnPct` is a fraction of your *actual* plan limit. The `weightBudget` proxy only matters as a fallback when real quota isn't present.
 
@@ -190,12 +211,13 @@ Cache reads are ~10× cheaper, so they count at 0.1. **It's a proxy for how much
 
 - `hooks/usage-guard-statusline.mjs` — runs as your status line; snapshots Claude Code's real `rate_limits` to `~/.claude/.usage-guard-limits.json` and reprints your status line. No network.
 - `hooks/usage-guard-hook.mjs` — the `Stop` hook. Prefers the captured real quota; falls back to the weighted budget. Emits at most one warning, throttled, fail-open.
+- `lib/reset-coach.mjs` — detects genuine new quota windows, prevents duplicate celebrations, and owns the optional fixed-origin `ntfy` sender.
 - `lib/engine.mjs` — scans local transcripts, sums tokens, computes the weighted proxy, and reads the captured limits. (Importable + a CLI.)
 - **Fast and capped:** the engine only parses transcript files *modified within the window* (default 5h), not your full history — measured ~0.4s end-to-end on a heavy setup (1,500 transcripts / 355 MB). The hook is hard-capped at 5s and fail-open either way.
 - `lib/config.mjs` — loads your `usage-guard.json` with safe defaults.
 - `skills/usage/SKILL.md` — the `/usage-guard:usage` status command.
 
-> State files live in your Claude config dir: `~/.claude/.usage-guard-limits.json` (latest real-quota snapshot) and `~/.claude/.usage-guard-state.json` (throttle memory). Both are best-effort and safe to delete.
+> State files live in your Claude config dir: `~/.claude/.usage-guard-limits.json` (latest real-quota snapshot) and `~/.claude/.usage-guard-state.json` (warning throttle plus reset-window memory). Both are best-effort and safe to delete.
 
 ## Tests
 
@@ -203,7 +225,7 @@ Cache reads are ~10× cheaper, so they count at 0.1. **It's a proxy for how much
 npm test
 ```
 
-11 zero-dependency checks (`node:assert` only, throwaway fixtures under your temp dir — never touches your real `~/.claude`). They pin the behaviors this README claims: the weighting formula, the per-`requestId` dedup that prevents 2–4× inflation, fail-open parsing of corrupt/partial transcript lines, the sub-10-minute burn-rate guard, and the real-quota snapshot clamping/staleness. If you send a real-world `rate_limits` report, it becomes a new fixture here.
+46 zero-dependency checks (`node:assert` only, throwaway fixtures under your temp dir — never touches your real `~/.claude`). They pin the weighting formula, per-`requestId` dedup, fail-open parsing, quota gates, reset detection, one-alert-per-window behavior across parallel sessions, quiet mode, timestamp-jitter rejection, and opt-in-only `ntfy` delivery. If you send a real-world `rate_limits` report, it becomes a new fixture here.
 
 ## Uninstall / disable
 

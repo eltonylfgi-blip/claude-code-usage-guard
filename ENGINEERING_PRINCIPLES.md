@@ -4,9 +4,9 @@ Six constraints every tool I publish is built under ([usage-guard](https://githu
 
 ## 1. Local-first, zero dependencies
 
-**Why it exists:** a tool that watches your usage or reads your sessions must not add attack surface or phone home.
+**Why it exists:** a tool that watches your usage or reads your sessions must not add hidden attack surface or phone home without an explicit opt-in.
 
-**Where it appears:** usage-guard and session-triage — zero deps, no network calls at all; usage-pacer — a single local HTML file, sync strictly optional.
+**Where it appears:** usage-guard and session-triage have zero dependencies. usage-guard's core and status-line paths stay local; its single optional network path sends only a fixed reset message to `ntfy.sh` when the user configures an opaque topic. usage-pacer is a single local HTML file with strictly optional sync.
 
 ## 2. Fail-open
 
@@ -36,4 +36,4 @@ Six constraints every tool I publish is built under ([usage-guard](https://githu
 
 **Why it exists:** if it only lives in a chat, it doesn't exist — an improvement must survive the conversation that produced it.
 
-**Where it appears:** usage-guard's own 11-check self-test (`npm test`) pins the weighting formula, the anti-inflation dedup, fail-open parsing, and the real-quota clamping; session-triage's 📍 convention and its fixture suite; the roadmap rule that every field report becomes a fixture and a test. These repos are the artifact.
+**Where it appears:** usage-guard's 46 checks (`npm test`) pin weighting, anti-inflation dedup, fail-open parsing, real-quota handling, reset detection, concurrent anti-repeat state, and opt-in-only notification behavior; session-triage has its fixture suite; every real field report is expected to become a fixture and test. These repos are the artifact.

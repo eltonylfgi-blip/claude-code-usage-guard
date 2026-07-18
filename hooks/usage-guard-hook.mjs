@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 // claude-code-usage-guard — Stop hook
-// Fires after Claude finishes a turn. Reads your recent token usage, and if you are
-// approaching your self-set budget OR burning unusually fast, emits ONE short warning line.
-// Throttled so it never spams. Fully fail-safe: any error -> exit 0, no output, no harm.
+// Fires after Claude finishes a turn. Warns near plan/budget limits and announces a newly
+// observed 5h or weekly quota window once. Fully fail-safe: any error -> exit 0, no harm.
 
-import { readFileSync, writeFileSync, renameSync } from "node:fs";
+import { closeSync, openSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -44,18 +43,90 @@ function writeState(s) {
     const tmp = p + ".tmp";
     writeFileSync(tmp, JSON.stringify(s));
     renameSync(tmp, p);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function acquireStateLock() {
+  const path = statePath() + ".lock";
+  const tryOnce = () => {
+    let fd;
+    try {
+      fd = openSync(path, "wx");
+      writeFileSync(fd, String(Date.now()), "utf8");
+      closeSync(fd);
+      return () => {
+        try {
+          unlinkSync(path);
+        } catch {}
+      };
+    } catch {
+      if (fd !== undefined) {
+        try {
+          closeSync(fd);
+        } catch {}
+      }
+      return null;
+    }
+  };
+
+  let release = tryOnce();
+  if (release) return release;
+
+  // The hook itself is capped at 5s. A lock older than 10s can only be crash residue.
+  try {
+    if (Date.now() - statSync(path).mtimeMs > 10_000) {
+      unlinkSync(path);
+      release = tryOnce();
+    }
   } catch {}
+  return release;
 }
 
 async function main() {
   // Import inside the try so an evaluation-time throw in a lib still fails open.
   const { collect, summarize, readLimits, pace, paceTag, WINDOW_SEC } = await import("../lib/engine.mjs");
   const { loadConfig } = await import("../lib/config.mjs");
+  const { buildResetMessage, detectQuotaResets, sendNtfy } = await import("../lib/reset-coach.mjs");
 
   const cfg = loadConfig();
-  if (cfg.quiet) return; // disabled by user
-
   const now = Date.now();
+  let state = readState();
+
+  // A first real-quota snapshot only establishes a baseline. Later snapshots can identify
+  // a genuinely fresh 5h / weekly window. Persist before emitting so a killed hook cannot
+  // repeat the celebration. This state update still happens in quiet mode.
+  const limits = readLimits();
+  if (limits) {
+    const release = acquireStateLock();
+    let resetLabels = [];
+    if (release) {
+      try {
+        // Re-read only after winning the lock so parallel sessions cannot both celebrate.
+        state = readState();
+        const reset = detectQuotaResets({
+          limits,
+          previous: state.resetWindows,
+          nowSec: Math.floor(now / 1000),
+        });
+        state.resetWindows = reset.next;
+        if (writeState(state)) resetLabels = reset.resetLabels;
+      } finally {
+        release();
+      }
+    }
+
+    if (resetLabels.length && cfg.resetCelebration && !cfg.quiet) {
+      const message = buildResetMessage(resetLabels);
+      await sendNtfy(message, { topic: cfg.ntfyTopic });
+      process.stdout.write(JSON.stringify({ systemMessage: message, suppressOutput: false }));
+      return;
+    }
+  }
+
+  if (cfg.quiet) return; // user disabled visible output
 
   // Build candidate warnings, most important first.
   const candidates = [];
@@ -63,7 +134,6 @@ async function main() {
   // ---- PRIMARY: real plan quota (5h / 7d), if the statusLine shim captured it -------------
   // This is Claude Code's actual `rate_limits`, not a hand-set proxy. When present it wins:
   // we warn on the real plan window(s) and skip the weighted-budget path entirely.
-  const limits = readLimits();
   if (limits) {
     const planPct = Math.round(cfg.planWarnPct * 100);
     const consider = (label, win, winSec) => {
@@ -121,13 +191,20 @@ async function main() {
 
   // Global throttle: after any warning, stay quiet for throttleMinutes so back-to-back
   // turns don't spam. candidates[0] is the highest-priority signal (budget over rate).
-  const state = readState();
   const throttleMs = cfg.throttleMinutes * 60_000;
-  if (now - (state.last || 0) < throttleMs) return;
   const pick = candidates[0];
-
-  state.last = now;
-  writeState(state);
+  const release = acquireStateLock();
+  if (!release) return;
+  let persisted = false;
+  try {
+    state = readState();
+    if (now - (state.last || 0) < throttleMs) return;
+    state.last = now;
+    persisted = writeState(state);
+  } finally {
+    release();
+  }
+  if (!persisted) return;
 
   // Surface to the user. Exit 0 + JSON { systemMessage } shows a non-blocking line.
   process.stdout.write(JSON.stringify({ systemMessage: pick.msg, suppressOutput: false }));

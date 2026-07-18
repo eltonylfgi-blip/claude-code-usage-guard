@@ -25,14 +25,14 @@ usage-guard has **two modes**, and it picks the best one available automatically
 🛑 Over budget: 120% (6.0M of 5.0M) in 5h
 ```
 
-Either mode prints **one short line**, then stays quiet for a cooldown so it never spams you. You also get a command, **`/usage-guard:usage`**, to check your numbers whenever you want.
+Either mode prints **one short line**, then stays quiet for a cooldown so it never spams you. Once real quota is available, the guard also announces each newly observed 5-hour or weekly reset once: `🎉 ¡Cuota fresca! Ventana nueva lista (5h) — aprovéchala.` You also get a command, **`/usage-guard:usage`**, to check your numbers whenever you want.
 
 A few things worth knowing up front:
 
 - **Real quota beats the proxy.** Mode 1 uses your *actual* plan limit, so you don't have to guess a budget. Mode 2 is an honest approximation for when Mode 1 isn't there — there's no public per-plan usage *API*, only the status-line `rate_limits` field, which is why the wiring in §3.5 matters.
 - **Real quota is Pro/Max only**, and only after the session's first API response. Before that (or on other plans) the guard quietly uses Mode 2.
 - **Does Claude Code already warn me?** It shows a native heads-up near the 5-hour limit. usage-guard adds concrete numbers (both windows + reset countdown) and the burn-rate fallback. If the native nudge is enough for you, you don't need this.
-- **It's safe.** Zero dependencies, reads only your local files, **makes no network calls** (the status-line shim only reads the JSON Claude Code pipes to it). If anything ever goes wrong it stays silent and exits cleanly (fail-open); the hook is capped at a 5-second timeout — so in practice it won't disrupt your session.
+- **It's safe.** Zero dependencies, reads local files, and makes **no network calls by default**. The only optional network path is an `ntfy` reset alert you must explicitly configure. If anything goes wrong it stays silent and exits cleanly (fail-open); the hook is capped at 5 seconds.
 
 ---
 
@@ -194,6 +194,12 @@ On Windows, write the path with **forward slashes** (Git Bash eats backslashes):
 
 > **Tune the threshold.** By default the guard warns once a window crosses **80%** (`planWarnPct: 0.8`). Lower it for an earlier heads-up, e.g. `{ "planWarnPct": 0.6 }` in `~/.claude/usage-guard.json`.
 
+### Fresh-window alert and optional phone delivery
+
+The first real-quota snapshot establishes a baseline and stays silent. Later snapshots are compared locally; small reset-time corrections are ignored, while a real window advance or usage returning near zero produces one celebration per 5-hour / weekly window.
+
+The in-session celebration is on by default. Set `"resetCelebration": false` to disable it. Phone delivery is off by default; to enable it, choose an unguessable [ntfy](https://ntfy.sh) topic and set either `"ntfyTopic": "your_private_topic"` in `usage-guard.json` or the `NTFY_TOPIC` environment variable. The destination is fixed to `ntfy.sh`, invalid topic shapes are rejected, and only the cheerful reset text is sent. Treat the topic as a password.
+
 ---
 
 ## 4. See your current numbers
@@ -274,6 +280,8 @@ The full file, with every field (all optional except that you need at least one 
   "warnPct": 0.8,
   "burnRatePerHour": 2000000,
   "throttleMinutes": 10,
+  "resetCelebration": true,
+  "ntfyTopic": "",
   "quiet": false
 }
 ```
@@ -286,7 +294,9 @@ The full file, with every field (all optional except that you need at least one 
 | `warnPct` | `0.8` | Warn once you cross this fraction of the budget (0.8 = 80%). |
 | `burnRatePerHour` | `0` (off) | Warn if your weighted spend **in the last hour** exceeds this. |
 | `throttleMinutes` | `10` | Minimum minutes between warnings — the anti-spam cooldown. |
-| `quiet` | `false` | `true` = compute but never warn (handy off-switch; `/usage-guard:usage` still works). |
+| `resetCelebration` | `true` | Announce a newly observed 5h / weekly window once. |
+| `ntfyTopic` | `""` (off) | Optional reset alert through `ntfy.sh`; `NTFY_TOPIC` overrides the file. |
+| `quiet` | `false` | `true` = record state but emit no warning, celebration, or phone alert; `/usage-guard:usage` still works. |
 
 > **Note for desktop / custom-window users:** the `/usage-guard:usage` command (and the `node lib/engine.mjs` CLI) always reports a fixed **5-hour** view. If you set a different `windowHours`, that affects your *automatic warnings* but not what the command prints.
 
@@ -306,11 +316,12 @@ Cache reads are roughly 10× cheaper than fresh input, so they only count at **0
 
 ## 7. Reading a warning (and tuning the noise)
 
-When a warning fires, it's a single line. Three kinds:
+When an alert fires, it's a single line. Four kinds:
 
 - **Plan quota (Mode 1):** `⚠️ Plan 5h quota: 88% used · resets in 1h 29m` — a real plan window (5h or weekly) crossed `planWarnPct`. `🛑` instead of `⚠️` once you're at 100%.
 - **Budget (Mode 2 fallback):** `🛑 Over budget: 120% (6.0M of 5.0M) in 5h` — you've passed your weighted budget in the rolling window. (Below 100% it reads `⚠️ Near budget: 85% ...`.)
 - **Burn rate:** `⚠️ Burning fast: 2.3M/h (limit 2.0M/h)` — your spend *in the last hour* is over your `burnRatePerHour` cap.
+- **Fresh window:** `🎉 ¡Cuota fresca! Ventana nueva lista (weekly) — aprovéchala.` — a new real-quota window was observed and will not be announced twice.
 
 What to do when you see one? Usually one of: start a fresh session (drops the cache-read tail), batch your questions instead of many tiny turns, or stop re-reading huge files. You don't have to do anything — it's a nudge, not a wall.
 
@@ -364,7 +375,7 @@ Also remove the `statusLine` block from `settings.json` if you added it in §3.5
 
 ## 9. Troubleshooting
 
-- **No warnings ever fire.** You probably haven't set a budget — `weightBudget` and `burnRatePerHour` are both `0` by default, which is *off*. See §5. Also check `quiet` isn't `true`.
+- **No warnings ever fire.** You probably haven't set a budget — `weightBudget` and `burnRatePerHour` are both `0` by default, which is *off*. See §5. Also check `quiet` isn't `true`. Fresh-window alerts additionally require the real-quota status-line shim and one earlier snapshot as a baseline.
 - **`/usage-guard:usage` says "command not found."** That command only exists on the terminal `/plugin` install (Route A). On the desktop manual route, run `node .../lib/engine.mjs` from your clone instead.
 - **Desktop hook does nothing.** Confirm `node --version` works in a terminal (Node 18+ on PATH), confirm the path in `settings.json` is **absolute** and (on Windows) uses **doubled backslashes** `\\`, and make sure you **restarted the app** after editing `settings.json`.
 - **"No usage found in the last 5h."** You simply haven't used Claude in the window yet, or transcripts live in a custom `CLAUDE_CONFIG_DIR` — point that env var the same way Claude Code does.

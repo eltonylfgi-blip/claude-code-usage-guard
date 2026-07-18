@@ -15,7 +15,7 @@ Each report becomes a fixture in `tests/selftest.mjs`, so the behavior you hit i
 ## Code changes
 
 - Keep the [engineering principles](./ENGINEERING_PRINCIPLES.md): local-first, zero dependencies, fail-open, warn-don't-block.
-- Run `npm test` before opening a PR — it's 11 zero-dependency checks and must stay green.
-- New behavior needs a check in `tests/selftest.mjs`. If it can fail, it needs a test.
+- Run `npm test` before opening a PR — all 46 zero-dependency checks must stay green.
+- New behavior needs a check in `tests/selftest.mjs` or a focused test file under `tests/`. If it can fail, it needs a test.
 
 Small, focused PRs are easiest to review. Bug reports and ideas are just as welcome as code.

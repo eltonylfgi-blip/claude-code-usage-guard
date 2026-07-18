@@ -8,8 +8,8 @@
     {
       "name": "usage-guard",
       "source": ".",
-      "description": "Warns you in-session as you near your real Claude Code plan limits (5h + weekly), with a weighted-budget fallback and a /usage command. Zero deps; no network.",
-      "version": "0.2.1"
+      "description": "Warns before real Claude Code plan limits and celebrates fresh 5h/weekly windows. Zero deps; optional ntfy stays off by default.",
+      "version": "0.4.0"
     }
   ]
 }

@@ -191,6 +191,40 @@ check("loadConfig: clamps bad values", () => {
   }
 });
 
+check("loadConfig: reset celebration is on and ntfy is off by default", () => {
+  const prevDir = process.env.CLAUDE_CONFIG_DIR;
+  const prevTopic = process.env.NTFY_TOPIC;
+  process.env.CLAUDE_CONFIG_DIR = freshConfigDir();
+  delete process.env.NTFY_TOPIC;
+  try {
+    const cfg = loadConfig();
+    assert.equal(cfg.resetCelebration, true);
+    assert.equal(cfg.ntfyTopic, "");
+  } finally {
+    process.env.CLAUDE_CONFIG_DIR = prevDir;
+    if (prevTopic === undefined) delete process.env.NTFY_TOPIC;
+    else process.env.NTFY_TOPIC = prevTopic;
+  }
+});
+
+check("loadConfig: ntfy accepts only an opaque topic and env overrides the file", () => {
+  const prevDir = process.env.CLAUDE_CONFIG_DIR;
+  const prevTopic = process.env.NTFY_TOPIC;
+  const dir = freshConfigDir();
+  process.env.CLAUDE_CONFIG_DIR = dir;
+  try {
+    writeFileSync(join(dir, "usage-guard.json"), JSON.stringify({ ntfyTopic: "https://bad.example/x" }), "utf8");
+    delete process.env.NTFY_TOPIC;
+    assert.equal(loadConfig().ntfyTopic, "", "URLs must not become notification destinations");
+    process.env.NTFY_TOPIC = "usage_guard-267";
+    assert.equal(loadConfig().ntfyTopic, "usage_guard-267", "the explicit environment topic wins");
+  } finally {
+    process.env.CLAUDE_CONFIG_DIR = prevDir;
+    if (prevTopic === undefined) delete process.env.NTFY_TOPIC;
+    else process.env.NTFY_TOPIC = prevTopic;
+  }
+});
+
 // ---- pace: even-pace math (backs the "should I slow down or push?" readout) ----
 check("pace: ahead of even split is flagged with the right delta", () => {
   // weekly window, half elapsed (reset in 3.5d), 68% used -> expected 50%, delta +18
