@@ -26,10 +26,6 @@ Either way it's **quiet** (one alert per event, plus a warning cooldown) and **s
 
 > **What about status-line usage monitors (claude-powerline, Claude Code Usage Monitor, â€¦)?** Those display usage passively â€” you have to look at them. usage-guard actively **interrupts** via the `Stop` hook when a threshold is crossed, so you don't have to remember to check. (Its own status-line shim is just a snapshot mechanism, not a display â€” it keeps whatever status line you already have.)
 
-
-> **usage-guard stays free.** Prefer to have it set up, verified and calibrated for your plan?
-> I'm testing **3 pilot hands-on setups at 7.20 EUR** (full refund if we can't get a valid real-quota
-> reading on your machine): **[Personal setup & real-quota verification](https://eltonylfgi.gumroad.com/l/sqviyh)**
 ## Install
 
 ```
@@ -78,6 +74,10 @@ node -e "const fs=require('fs'),p=require('path'),os=require('os');const root=p.
 - Real quota appears only for **Claude.ai Pro/Max** sessions, and only after the first API response. Until then, the guard quietly uses the weighted-budget fallback.
 
 > **Heads-up â€” this real-quota mode is new.** The `rate_limits` shape it reads follows the [official Claude Code status-line schema](https://code.claude.com/docs/en/statusline), but the end-to-end live capture hasn't been battle-tested across many setups yet. If a window doesn't surface for any reason, usage-guard simply falls back to the weighted proxy â€” it fails open and never breaks your session. Spotted something off? Issues/feedback welcome.
+
+> **usage-guard stays free.** Prefer to have it set up, verified and calibrated for your plan?
+> I'm testing **3 pilot hands-on setups at 7.20 EUR** (full refund if we can't get a valid real-quota
+> reading on your machine): **[Personal setup & real-quota verification](https://eltonylfgi.gumroad.com/l/sqviyh)**
 
 **Using the Claude Desktop app?** `/plugin` only exists in the terminal CLI. For the desktop app you wire the `Stop` hook (and optionally the status line) manually â€” see **[TUTORIAL.md](./TUTORIAL.md)**.
 
