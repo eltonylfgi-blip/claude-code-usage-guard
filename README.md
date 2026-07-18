@@ -28,7 +28,7 @@ Either way it's **quiet** (one alert per event, plus a warning cooldown) and **s
 
 
 > **usage-guard stays free.** Prefer to have it set up, verified and calibrated for your plan?
-> I'm testing **3 pilot hands-on setups at 19 EUR** (full refund if we can't get a valid real-quota
+> I'm testing **3 pilot hands-on setups at 7.20 EUR** (full refund if we can't get a valid real-quota
 > reading on your machine): **[Personal setup & real-quota verification](https://eltonylfgi.gumroad.com/l/sqviyh)**
 ## Install
 
