@@ -26,6 +26,14 @@ Either way it's **quiet** (one alert per event, plus a warning cooldown) and **s
 
 > **What about status-line usage monitors (claude-powerline, Claude Code Usage Monitor, â€¦)?** Those display usage passively â€” you have to look at them. usage-guard actively **interrupts** via the `Stop` hook when a threshold is crossed, so you don't have to remember to check. (Its own status-line shim is just a snapshot mechanism, not a display â€” it keeps whatever status line you already have.)
 
+## Want it working without touching the config?
+
+**Hands-on setup: 7.20 EUR, 3 pilot spots.** I connect the real-quota capture on your machine, check that both the 5-hour and weekly readings are valid, and set the warning threshold for your plan. **Full refund if I cannot get a valid real-quota reading.**
+
+[Get my real quota working ->](https://eltonylfgi.gumroad.com/l/sqviyh)
+
+If you would rather set it up yourself, everything below is free.
+
 ## Install
 
 ```
@@ -38,10 +46,6 @@ Either way it's **quiet** (one alert per event, plus a warning cooldown) and **s
 **DIY â€” free.** Enable the real 5-hour + weekly quota reading below. Setup is complete when `/usage-guard:usage` starts with:
 
 `Real plan quota`
-
-**Hands-on â€” 7.20 EUR Â· 3 pilot spots.** I help you connect the real-quota capture, verify a valid 5-hour + weekly reading on your machine, and calibrate the warning threshold for your plan. **Full refund if we cannot get a valid real-quota reading.**
-
-[Get my real quota working ->](https://eltonylfgi.gumroad.com/l/sqviyh)
 
 The `Stop` hook is active immediately â€” but it stays silent until you wire real plan quota (below) or set a fallback budget in usage-guard.json; until then, run /usage-guard:usage anytime to see where you stand. The headline **real plan quota** mode (what's in the GIF) needs one extra one-time step: the status-line wiring below (~30 seconds).
 
