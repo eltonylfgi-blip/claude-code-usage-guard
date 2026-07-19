@@ -1,7 +1,7 @@
 {
   "name": "usage-guard",
   "description": "Warns before real Claude Code plan limits and celebrates fresh 5h/weekly windows. Zero dependencies; network off unless optional ntfy is configured.",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "author": {
     "name": "eltonylfgi-blip"
   },
