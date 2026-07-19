@@ -43,7 +43,7 @@ Either way it's **quiet** (one alert per event, plus a warning cooldown) and **s
 
 [Get my real quota working ->](https://eltonylfgi.gumroad.com/l/sqviyh)
 
-The `Stop` hook is active immediately â€” you get the fallback (weighted-budget) warnings right away. The headline **real plan quota** mode (what's in the GIF) needs one extra one-time step: the status-line wiring below (~30 seconds).
+The `Stop` hook is active immediately â€” but it stays silent until you wire real plan quota (below) or set a fallback budget in usage-guard.json; until then, run /usage-guard:usage anytime to see where you stand. The headline **real plan quota** mode (what's in the GIF) needs one extra one-time step: the status-line wiring below (~30 seconds).
 
 ### Did it help? Tell me in 30 seconds
 

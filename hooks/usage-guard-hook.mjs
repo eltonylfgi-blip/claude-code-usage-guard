@@ -187,7 +187,22 @@ async function main() {
     }
   }
 
-  if (!candidates.length) return;
+  // ---- ACTIVATION NUDGE: installed but nothing is active yet ------------------------------
+  // A fresh install with no real-quota snapshot AND no fallback budget/rate configured emits
+  // nothing at all, so the user never learns the guard is silent until they wire it up. Show a
+  // ONE-TIME hint pointing at the exact next step. Never repeats; never fires once real quota
+  // is captured or a fallback threshold is set; quiet already returned above.
+  if (!candidates.length) {
+    if (!limits && cfg.weightBudget === 0 && cfg.burnRatePerHour === 0) {
+      const st0 = readState();
+      if (!st0.activationNudgeShown) {
+        st0.activationNudgeShown = true;
+        writeState(st0);
+        process.stdout.write(JSON.stringify({ systemMessage: "usage-guard is installed but not active yet - enable real plan quota (recommended) or set a fallback budget. Run /usage-guard:usage for the exact next step.", suppressOutput: false }));
+      }
+    }
+    return;
+  }
 
   // Global throttle: after any warning, stay quiet for throttleMinutes so back-to-back
   // turns don't spam. candidates[0] is the highest-priority signal (budget over rate).
