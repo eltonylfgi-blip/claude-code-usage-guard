@@ -1,6 +1,6 @@
 {
   "name": "claude-code-usage-guard",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "A zero-dependency Claude Code plugin that warns before plan limits and celebrates fresh 5h/weekly quota windows. Network stays off unless optional ntfy is configured.",
   "type": "module",
   "bin": {

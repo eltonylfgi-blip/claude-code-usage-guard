@@ -59,15 +59,18 @@ Add a `statusLine` block to `~/.claude/settings.json` (Windows: `%USERPROFILE%\.
 {
   "statusLine": {
     "type": "command",
-    "command": "node \"/ABSOLUTE/PATH/TO/usage-guard/hooks/usage-guard-statusline.mjs\""
+    "command": "node \"/ABSOLUTE/PATH/TO/usage-guard/hooks/usage-guard-statusline.mjs\"",
+    "refreshInterval": 30
   }
 }
 ```
 
+`"refreshInterval": 30` keeps the quota snapshot fresh while the main session is idle or waiting on subagents. Thanks to [@davidsh7](https://github.com/davidsh7) for catching this.
+
 **Don't want to hunt for the path?** This one-liner finds your installed copy and prints the exact block to paste (works in bash, zsh and PowerShell):
 
 ```bash
-node -e "const fs=require('fs'),p=require('path'),os=require('os');const root=p.join(os.homedir(),'.claude','plugins');let hit;(function w(d){let es;try{es=fs.readdirSync(d,{withFileTypes:true})}catch(e){return}for(const x of es){if(x.name==='node_modules'||x.name==='.git')continue;const f=p.join(d,x.name);if(x.isDirectory())w(f);else if(x.name==='usage-guard-statusline.mjs')hit=f}})(root);if(hit){console.log('Paste this into ~/.claude/settings.json:');console.log(JSON.stringify({statusLine:{type:'command',command:'node \"'+hit+'\"'}},null,2))}else console.log('usage-guard not found under '+root+' â€” run /plugin install first')"
+node -e "const fs=require('fs'),p=require('path'),os=require('os');const root=p.join(os.homedir(),'.claude','plugins');let hit;(function w(d){let es;try{es=fs.readdirSync(d,{withFileTypes:true})}catch(e){return}for(const x of es){if(x.name==='node_modules'||x.name==='.git')continue;const f=p.join(d,x.name);if(x.isDirectory())w(f);else if(x.name==='usage-guard-statusline.mjs')hit=f}})(root);if(hit){console.log('Paste this into ~/.claude/settings.json:');console.log(JSON.stringify({statusLine:{type:'command',command:'node \"'+hit+'\"',refreshInterval:30}},null,2))}else console.log('usage-guard not found under '+root+' â€” run /plugin install first')"
 ```
 
 - **Already have a status line?** Don't lose it â€” set `USAGE_GUARD_STATUSLINE` to your existing command and the shim re-runs it after snapshotting, so your line still renders:
@@ -75,7 +78,8 @@ node -e "const fs=require('fs'),p=require('path'),os=require('os');const root=p.
   {
     "statusLine": {
       "type": "command",
-      "command": "USAGE_GUARD_STATUSLINE='~/.claude/my-statusline.sh' node \"/ABSOLUTE/PATH/TO/usage-guard/hooks/usage-guard-statusline.mjs\""
+      "command": "USAGE_GUARD_STATUSLINE='~/.claude/my-statusline.sh' node \"/ABSOLUTE/PATH/TO/usage-guard/hooks/usage-guard-statusline.mjs\"",
+      "refreshInterval": 30
     }
   }
   ```
@@ -138,6 +142,31 @@ Add to your `settings.json` (or the plugin's `hooks.json`):
   }
 }
 ```
+
+### Optional per-spawn gate for subagents
+
+`SubagentStart` can add context but cannot block a spawn. To re-check the same quota snapshot before each new subagent starts, add a `PreToolUse` hook with matcher `Agent|Workflow` and have the command return a deny decision when the guard says stop:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Agent|Workflow",
+        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/usage-guard-pretool-gate.mjs\" --max-weekly 85" }]
+      }
+    ]
+  }
+}
+```
+
+The gate command denies a new spawn by returning JSON in this shape:
+
+```json
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Usage guard: quota threshold reached."}}
+```
+
+This stops later staggered spawns; it cannot cancel subagents already running. Thanks to [@davidsh7](https://github.com/davidsh7) for documenting the working hook boundary.
 
 - Prints **one line** at session start when a window is **â‰¥70% used** â€” below that it stays completely silent (quiet by design, like the rest of the plugin):
   `âš ï¸ Plan 5h quota: 78% used Â· resets in 2h 15m Â· 12% ahead of even pace â€” slow down to make it last`

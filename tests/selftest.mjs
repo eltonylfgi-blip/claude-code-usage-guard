@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { execSync } from "node:child_process";
+import { execSync, spawnSync } from "node:child_process";
 
 import { weigh, collect, summarize, readLimits, limitsPath, pace, paceTag, WINDOW_SEC } from "../lib/engine.mjs";
 import { loadConfig, DEFAULTS } from "../lib/config.mjs";
@@ -453,6 +453,46 @@ check("feedback: README routes directly to the universal field-report form", () 
   assert.match(form, /Real quota mode did not appear/);
   assert.match(form, /id: details/);
   assert.match(form, /Please redact tokens, account IDs, and other secrets/);
+});
+
+// Per-spawn gate: fresh over-limit data denies new Agent/Workflow calls, while
+// missing data remains silent and fail-open.
+function runPreToolGate(dir, args = []) {
+  return spawnSync(process.execPath, ["hooks/usage-guard-pretool-gate.mjs", ...args], {
+    cwd: new URL("..", import.meta.url),
+    encoding: "utf8",
+    env: { ...process.env, CLAUDE_CONFIG_DIR: dir },
+    timeout: 5000
+  });
+}
+
+check("pretool gate: over-limit weekly snapshot emits deny JSON", () => {
+  const dir = freshConfigDir();
+  writeFileSync(join(dir, ".usage-guard-limits.json"), JSON.stringify({
+    capturedAt: Math.floor(Date.now() / 1000),
+    sevenDay: { usedPct: 90 }
+  }), "utf8");
+  const r = runPreToolGate(dir, ["--max-weekly", "85"]);
+  assert.equal(r.status, 0);
+  const output = JSON.parse(r.stdout);
+  assert.equal(output.hookSpecificOutput.hookEventName, "PreToolUse");
+  assert.equal(output.hookSpecificOutput.permissionDecision, "deny");
+});
+
+check("pretool gate: missing snapshot stays silent and fail-open", () => {
+  const r = runPreToolGate(freshConfigDir(), ["--max-weekly", "85"]);
+  assert.equal(r.status, 0);
+  assert.equal(r.stdout, "");
+});
+
+check("docs: status line stays fresh and per-spawn matcher is discoverable", () => {
+  const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+  const tutorial = readFileSync(new URL("../TUTORIAL.md", import.meta.url), "utf8");
+  for (const doc of [readme, tutorial]) {
+    assert.match(doc, /"refreshInterval": 30/);
+    assert.match(doc, /"matcher": "Agent\|Workflow"/);
+    assert.match(doc, /@davidsh7/);
+  }
 });
 
 // ---- report --------------------------------------------------------------

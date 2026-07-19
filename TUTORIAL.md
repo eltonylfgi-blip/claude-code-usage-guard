@@ -170,10 +170,13 @@ If you installed from a clone (desktop route), it's `<your clone>/hooks/usage-gu
 {
   "statusLine": {
     "type": "command",
-    "command": "node \"/ABSOLUTE/PATH/TO/usage-guard/hooks/usage-guard-statusline.mjs\""
+    "command": "node \"/ABSOLUTE/PATH/TO/usage-guard/hooks/usage-guard-statusline.mjs\"",
+    "refreshInterval": 30
   }
 }
 ```
+
+Keep `"refreshInterval": 30`: without it, status-line updates can pause while the coordinator waits on background subagents and the quota snapshot can become stale at the exact moment the guard matters. Thanks to [@davidsh7](https://github.com/davidsh7) for catching this.
 
 On Windows, write the path with **forward slashes** (Git Bash eats backslashes): `node "C:/Users/you/.claude/plugins/.../hooks/usage-guard-statusline.mjs"`.
 
@@ -183,7 +186,8 @@ On Windows, write the path with **forward slashes** (Git Bash eats backslashes):
 {
   "statusLine": {
     "type": "command",
-    "command": "USAGE_GUARD_STATUSLINE='~/.claude/my-statusline.sh' node \"/ABSOLUTE/PATH/TO/usage-guard/hooks/usage-guard-statusline.mjs\""
+    "command": "USAGE_GUARD_STATUSLINE='~/.claude/my-statusline.sh' node \"/ABSOLUTE/PATH/TO/usage-guard/hooks/usage-guard-statusline.mjs\"",
+    "refreshInterval": 30
   }
 }
 ```
@@ -193,6 +197,30 @@ On Windows, write the path with **forward slashes** (Git Bash eats backslashes):
 **Step 3 — sanity check.** Send Claude a message. Then run `/usage-guard:usage` (or `node .../lib/engine.mjs`). If you're on Pro/Max, you should now see a **"Real plan quota"** block at the top with your 5h and weekly percentages. If you don't see it yet, send one more message (the field only appears after the first API response) — and if it never appears, you're likely not on a Pro/Max plan, so the guard will use Mode 2.
 
 > **Tune the threshold.** By default the guard warns once a window crosses **80%** (`planWarnPct: 0.8`). Lower it for an earlier heads-up, e.g. `{ "planWarnPct": 0.6 }` in `~/.claude/usage-guard.json`.
+
+### Optional: gate each new subagent spawn
+
+`SubagentStart` is context-only and cannot block. If you run staggered orchestrations, the plugin includes a `PreToolUse` gate that re-checks the quota snapshot immediately before each `Agent` or `Workflow` tool call:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Agent|Workflow",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/usage-guard-pretool-gate.mjs\" --max-weekly 85"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Add `--max-5h 85` if you also want a hard 5-hour threshold. The hook denies only new spawns after a limit is reached; it cannot cancel subagents already running. Missing or stale quota data fails open. Thanks to [@davidsh7](https://github.com/davidsh7) for documenting this hook boundary.
 
 ### Fresh-window alert and optional phone delivery
 
