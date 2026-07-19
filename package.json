@@ -8,7 +8,7 @@
   },
   "scripts": {
     "usage": "node lib/engine.mjs",
-    "test": "node tests/selftest.mjs && node tests/reset-coach.test.mjs"
+    "test": "node tests/selftest.mjs && node tests/reset-coach.test.mjs && node tests/nudge.test.mjs"
   },
   "keywords": [
     "claude-code",

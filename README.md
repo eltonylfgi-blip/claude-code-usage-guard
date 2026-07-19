@@ -1,6 +1,6 @@
 # usage-guard
 
-![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg) ![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-5A45FF) ![Zero dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen) ![Network off by default](https://img.shields.io/badge/network-off%20by%20default-brightgreen) ![Tests: 46/46](https://img.shields.io/badge/tests-46%2F46-brightgreen)
+![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg) ![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-5A45FF) ![Zero dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen) ![Network off by default](https://img.shields.io/badge/network-off%20by%20default-brightgreen) ![Tests: 46/46](https://img.shields.io/badge/tests-50%2F50-brightgreen)
 
 Claude Code will cut you off mid-task when you hit your 5-hour or weekly limit. **usage-guard warns you *before* that happens, right in the session.**
 
