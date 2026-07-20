@@ -16,7 +16,7 @@ It runs in two quota modes automatically, plus a fresh-window coach:
 
 - **Primary â€” real plan quota.** If you wire up the tiny status-line shim (one line in your settings, below), Claude Code hands it your actual `rate_limits` (5-hour + weekly `used_percentage` and reset times). usage-guard snapshots that locally and warns when a window crosses your threshold: `âš ï¸ Plan 5h quota: 88% used Â· resets in 1h 29m`.
 - **Fallback â€” weighted budget.** If the real quota isn't available (status-line not wired, or a session that hasn't had its first API response yet), it falls back to a budget **you** set against a "weighted spend" proxy read from local transcripts: `ðŸ›‘ Over budget: 120% (6.0M of 5.0M) in 5h`.
-- **Fresh-window coach.** Once real quota is available, a conservative local detector announces each newly observed 5-hour or weekly window once: `ðŸŽ‰ Â¡Cuota fresca! Ventana nueva lista (5h) â€” aprovÃ©chala.`
+- **Fresh-window coach.** Once real quota is available, a conservative local detector announces each newly observed 5-hour or weekly window once: `🎉 Fresh quota! New window ready (5h) — make the most of it.`
 
 Either way it's **quiet** (one alert per event, plus a warning cooldown) and **safe** (zero dependencies; reads local files; network is **off by default**; fail-open with a 5s cap). An optional `ntfy` reset alert is the only network path and runs only when you explicitly configure a topic.
 
@@ -101,7 +101,7 @@ node -e "const fs=require('fs'),p=require('path'),os=require('os');const root=p.
 After the status-line shim has established one baseline snapshot, the `Stop` hook compares consecutive 5-hour and weekly windows. A first observation never fires. Small reset-time corrections stay silent. A real window advance or usage returning near zero produces one in-session celebration, then records that window so it cannot repeat:
 
 ```text
-ðŸŽ‰ Â¡Cuota fresca! Ventana nueva lista (5h + weekly) â€” aprovÃ©chala.
+🎉 Fresh quota! New window ready (5h + weekly) — make the most of it.
 ```
 
 The banner is on by default. Disable only this feature with `"resetCelebration": false`.

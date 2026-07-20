@@ -25,7 +25,7 @@ usage-guard has **two modes**, and it picks the best one available automatically
 🛑 Over budget: 120% (6.0M of 5.0M) in 5h
 ```
 
-Either mode prints **one short line**, then stays quiet for a cooldown so it never spams you. Once real quota is available, the guard also announces each newly observed 5-hour or weekly reset once: `🎉 ¡Cuota fresca! Ventana nueva lista (5h) — aprovéchala.` You also get a command, **`/usage-guard:usage`**, to check your numbers whenever you want.
+Either mode prints **one short line**, then stays quiet for a cooldown so it never spams you. Once real quota is available, the guard also announces each newly observed 5-hour or weekly reset once: `🎉 Fresh quota! New window ready (5h) — make the most of it.` You also get a command, **`/usage-guard:usage`**, to check your numbers whenever you want.
 
 A few things worth knowing up front:
 
@@ -349,7 +349,7 @@ When an alert fires, it's a single line. Four kinds:
 - **Plan quota (Mode 1):** `⚠️ Plan 5h quota: 88% used · resets in 1h 29m` — a real plan window (5h or weekly) crossed `planWarnPct`. `🛑` instead of `⚠️` once you're at 100%.
 - **Budget (Mode 2 fallback):** `🛑 Over budget: 120% (6.0M of 5.0M) in 5h` — you've passed your weighted budget in the rolling window. (Below 100% it reads `⚠️ Near budget: 85% ...`.)
 - **Burn rate:** `⚠️ Burning fast: 2.3M/h (limit 2.0M/h)` — your spend *in the last hour* is over your `burnRatePerHour` cap.
-- **Fresh window:** `🎉 ¡Cuota fresca! Ventana nueva lista (weekly) — aprovéchala.` — a new real-quota window was observed and will not be announced twice.
+- **Fresh window:** `🎉 Fresh quota! New window ready (weekly) — make the most of it.` — a new real-quota window was observed and will not be announced twice.
 
 What to do when you see one? Usually one of: start a fresh session (drops the cache-read tail), batch your questions instead of many tiny turns, or stop re-reading huge files. You don't have to do anything — it's a nudge, not a wall.
 
