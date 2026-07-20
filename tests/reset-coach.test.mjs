@@ -205,7 +205,7 @@ await check("reset celebration bypasses the ordinary warning throttle", () => {
     );
     writeLimits(dir, { fiveHour: { usedPct: 1, resetsAt: now + FIVE_H } });
     const output = JSON.parse(runHook(dir));
-    assert.match(output.systemMessage, /Cuota fresca/);
+    assert.match(output.systemMessage, /Fresh quota/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -245,7 +245,7 @@ await check("an active state lock prevents concurrent duplicate celebrations", (
 
     assert.equal(runHook(dir), "", "a second hook must let the lock owner handle the reset");
     rmSync(lock, { force: true });
-    assert.match(JSON.parse(runHook(dir)).systemMessage, /Cuota fresca/);
+    assert.match(JSON.parse(runHook(dir)).systemMessage, /Fresh quota/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

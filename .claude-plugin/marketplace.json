@@ -9,7 +9,7 @@
       "name": "usage-guard",
       "source": ".",
       "description": "Warns before real Claude Code plan limits and celebrates fresh 5h/weekly windows. Zero deps; optional ntfy stays off by default.",
-      "version": "0.4.3"
+      "version": "0.4.4"
     }
   ]
 }
