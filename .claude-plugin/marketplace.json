@@ -1,6 +1,6 @@
 {
   "name": "cc-guard",
-  "description": "Tools that keep Claude Code sessions cheap and predictable \u2014 starting with usage-guard, an in-session warner for your real plan limits.",
+  "description": "Tools that keep Claude Code sessions cheap and predictable \u2014 starting with usage-guard, which gives Claude fresh quota context while it works.",
   "owner": {
     "name": "eltonylfgi-blip"
   },
@@ -8,8 +8,8 @@
     {
       "name": "usage-guard",
       "source": ".",
-      "description": "Warns before real Claude Code plan limits and celebrates fresh 5h/weekly windows. Zero deps; optional ntfy stays off by default.",
-      "version": "0.4.4"
+      "description": "Injects fresh 5h/weekly quota into Claude's context on every prompt, warns before limits, and celebrates resets. Zero deps; optional ntfy stays off by default.",
+      "version": "0.5.0"
     }
   ]
 }

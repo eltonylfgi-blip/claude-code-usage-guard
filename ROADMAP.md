@@ -4,11 +4,12 @@ Direction-level and honest — no promised dates. Ordered by what users hit firs
 
 ## Shipped
 
+- **Quota-aware prompts (v0.5.0).** A bundled `UserPromptSubmit` hook gives Claude a compact 5h/weekly quota and even-pace signal on every prompt. It uses only snapshots from the last 15 minutes, never reads prompt text, and fails open.
 - **Fresh-window coach (v0.4.0).** Detects newly observed 5-hour / weekly quota windows, celebrates once in-session, and can optionally send the same reset-only message to `ntfy.sh`. The phone path is off by default.
 
 ## Next
 
-- **Battle-test real-quota mode.** The `rate_limits` capture follows the official status-line schema, but it's new — I want real-world setups (OS × plan × existing status-line configs). Each report becomes a fixture and a test.
+- **Battle-test real-quota mode and prompt context.** The `rate_limits` capture follows the official status-line schema, but it's new — I want real-world setups (OS × plan × existing status-line configs) plus confirmation that the added context changes useful pacing decisions. Each report becomes a fixture and a test.
 - **Remove the manual path step.** Auto-detect the installed plugin path for the status-line shim, so the one-time wiring stops requiring an absolute path.
 
 ## Later

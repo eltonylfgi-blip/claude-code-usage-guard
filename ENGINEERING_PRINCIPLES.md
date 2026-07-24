@@ -12,13 +12,13 @@ Six constraints every tool I publish is built under ([usage-guard](https://githu
 
 **Why it exists:** a helper must never break the thing it helps.
 
-**Where it appears:** usage-guard's `Stop` hook is hard-capped at 5 seconds and swallows its own errors — if anything goes wrong, the session continues as if the tool weren't installed. Its status-line shim reprints your existing status line even when it fails.
+**Where it appears:** usage-guard's `Stop` hook is hard-capped at 5 seconds and its `UserPromptSubmit` hook at 2 seconds; both swallow their own errors, so a broken helper cannot break the session or prompt. The prompt hook also rejects missing, malformed, future, or >15-minute-old quota snapshots. Its status-line shim reprints your existing status line even when it fails.
 
 ## 3. Warn, don't block
 
 **Why it exists:** the human stays in control — tools surface signal, they don't take decisions.
 
-**Where it appears:** usage-guard interrupts with a message, never a lock. session-triage only reports; by design it cannot stop anything.
+**Where it appears:** usage-guard's default path provides quota context and warnings, never a lock. Its separate per-spawn subagent gate is explicit opt-in for users who deliberately want enforcement. session-triage only reports; by design it cannot stop anything.
 
 ## 4. One real friction per tool
 
@@ -36,4 +36,4 @@ Six constraints every tool I publish is built under ([usage-guard](https://githu
 
 **Why it exists:** if it only lives in a chat, it doesn't exist — an improvement must survive the conversation that produced it.
 
-**Where it appears:** usage-guard's 46 checks (`npm test`) pin weighting, anti-inflation dedup, fail-open parsing, real-quota handling, reset detection, concurrent anti-repeat state, and opt-in-only notification behavior; session-triage has its fixture suite; every real field report is expected to become a fixture and test. These repos are the artifact.
+**Where it appears:** usage-guard's 63 checks (`npm test`) pin weighting, anti-inflation dedup, fail-open parsing, real-quota handling, prompt privacy and freshness, reset detection, concurrent anti-repeat state, and opt-in-only notification behavior; session-triage has its fixture suite; every real field report is expected to become a fixture and test. These repos are the artifact.

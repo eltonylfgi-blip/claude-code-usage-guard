@@ -1,10 +1,10 @@
 # usage-guard
 
-![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg) ![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-5A45FF) ![Zero dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen) ![Network off by default](https://img.shields.io/badge/network-off%20by%20default-brightgreen) ![Tests: 46/46](https://img.shields.io/badge/tests-50%2F50-brightgreen)
+![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg) ![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-5A45FF) ![Zero dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen) ![Network off by default](https://img.shields.io/badge/network-off%20by%20default-brightgreen) ![Tests: 63/63](https://img.shields.io/badge/tests-63%2F63-brightgreen)
 
-Claude Code will cut you off mid-task when you hit your 5-hour or weekly limit. **usage-guard warns you *before* that happens, right in the session.**
+Claude Code can cut you off mid-task when you hit your 5-hour or weekly limit. **usage-guard gives Claude the fresh quota before every answer, so it can pace the work while it works.**
 
-A tiny [Claude Code](https://code.claude.com) plugin that **warns you in-session as you approach your real plan limits** and tells you when a fresh 5-hour or weekly window is ready. It includes concrete numbers, an **even-pace readout** (should you slow down or push?), a burn-rate proxy, and a `/usage-guard:usage` command to check anytime.
+A tiny [Claude Code](https://code.claude.com) plugin that injects your fresh 5-hour and weekly quota into Claude's context on each prompt, warns you in-session before the limit, and tells you when a fresh window is ready. It includes concrete numbers, an **even-pace readout** (should you slow down or push?), a burn-rate proxy, and a `/usage-guard:usage` command to check anytime.
 
 > **Why it matters:** a fresh quota window is easy to burn in one afternoon. Knowing both when it opens and whether your pace is sustainable makes that new allowance useful instead of accidental.
 
@@ -24,7 +24,7 @@ Either way it's **quiet** (one alert per event, plus a warning cooldown) and **s
 
 > **How is this different from [ccusage](https://github.com/ryoppippi/ccusage)?** ccusage is a great *reporting* CLI you run to see a breakdown. usage-guard is a *proactive guard*: it nudges you **in the moment**, inside the session, as you near a limit. Use both.
 
-> **What about status-line usage monitors (claude-powerline, Claude Code Usage Monitor, â€¦)?** Those display usage passively â€” you have to look at them. usage-guard actively **interrupts** via the `Stop` hook when a threshold is crossed, so you don't have to remember to check. (Its own status-line shim is just a snapshot mechanism, not a display â€” it keeps whatever status line you already have.)
+> **What about status-line usage monitors (claude-powerline, Claude Code Usage Monitor, â€¦)?** Those display usage for a human to notice. usage-guard also gives the fresh quota to **Claude itself on every prompt**, then actively warns through the `Stop` hook when a threshold is crossed. Its status-line shim is only the local snapshot mechanism, so it keeps whatever status line you already use.
 
 ## Want it working without touching the config?
 
@@ -47,7 +47,7 @@ If you would rather set it up yourself, everything below is free.
 
 `Real plan quota`
 
-The `Stop` hook is active immediately â€” but it stays silent until you wire real plan quota (below) or set a fallback budget in usage-guard.json; until then, run /usage-guard:usage anytime to see where you stand. The headline **real plan quota** mode (what's in the GIF) needs one extra one-time step: the status-line wiring below (~30 seconds).
+The warning and prompt-context hooks are active immediately. They stay silent until you wire real plan quota below; the warning can also use a fallback budget from `usage-guard.json`. Until then, run `/usage-guard:usage` anytime to see where you stand. The headline **real plan quota** mode needs one extra one-time step: the status-line wiring below (~30 seconds).
 
 ### Did it help? Tell me in 30 seconds
 
@@ -111,6 +111,18 @@ The banner is on by default. Disable only this feature with `"resetCelebration":
 Phone delivery is off by default. To opt in, choose an unguessable [ntfy](https://ntfy.sh) topic and set either `"ntfyTopic": "your_private_topic"` in `usage-guard.json` or the `NTFY_TOPIC` environment variable. The environment variable wins when both exist.
 
 The destination is fixed to `https://ntfy.sh/<topic>`; URLs and slashes are rejected. The message contains only the cheerful reset text, never your usage percentage, account data, or transcript content. Delivery is best-effort with a short timeout, so a network problem cannot block Claude Code. Treat the topic name like a password because anyone who knows it can subscribe.
+
+## Claude sees the quota on every prompt
+
+Once the real-quota capture above is enabled, the bundled `UserPromptSubmit` hook adds one compact private line to Claude's context before each answer:
+
+```text
+Usage guard quota: 5h 62% used | reset 2h 0m | on pace; weekly 58% used | reset 2d 0h | 13% under even pace.
+```
+
+That means Claude can budget reasoning depth and new subagents from the quota that actually remains instead of waiting for you to notice a dashboard. Correctness, safety, and your request still take priority.
+
+The hook never reads or echoes your prompt, makes no network call, and never blocks a prompt. It only emits context from a real quota snapshot captured in the last 15 minutes; missing, malformed, future, or stale data stays silent. Disable only this feature with `"promptContext": false`, or silence every plugin output with `"quiet": true`.
 
 ## Your agents can pace themselves (machine-readable quota)
 
@@ -197,6 +209,7 @@ usage-guard reads `~/.claude/usage-guard.json` (create it). All fields are optio
   "burnRatePerHour": 2000000,
   "throttleMinutes": 10,
   "resetCelebration": true,
+  "promptContext": true,
   "ntfyTopic": ""
 }
 ```
@@ -210,8 +223,9 @@ usage-guard reads `~/.claude/usage-guard.json` (create it). All fields are optio
 | `burnRatePerHour` | `0` (off) | Warn if your weighted spend **in the last hour** exceeds this. Independent of the modes above. |
 | `throttleMinutes` | `10` | Minimum gap between warnings. |
 | `resetCelebration` | `true` | Announce each newly observed 5h / weekly window once. Requires real-quota mode. |
+| `promptContext` | `true` | Give Claude a fresh real-quota line on every prompt. Stays silent until real-quota capture is active; set `false` to disable. |
 | `ntfyTopic` | `""` (off) | Optional reset alert through `ntfy.sh`; an `NTFY_TOPIC` environment variable overrides it. |
-| `quiet` | `false` | `true` records state but emits no warning, celebration, or phone alert; `/usage-guard:usage` still works. |
+| `quiet` | `false` | `true` records state but emits no prompt context, warning, celebration, or phone alert; `/usage-guard:usage` still works. |
 
 In **real-quota mode** you don't need to guess a budget â€” `planWarnPct` is a fraction of your *actual* plan limit. The `weightBudget` proxy only matters as a fallback when real quota isn't present.
 
@@ -253,6 +267,8 @@ Cache reads are ~10Ã— cheaper, so they count at 0.1. **It's a proxy for how m
 
 ## How it works
 
+- `hooks/usage-guard-prompt-context.mjs` — the bundled `UserPromptSubmit` hook. Injects only a fresh local quota snapshot as structured `additionalContext`; never reads prompt input and always fails open.
+- `lib/quota-context.mjs` — formats the compact 5h/weekly context line and even-pace signal.
 - `hooks/usage-guard-statusline.mjs` â€” runs as your status line; snapshots Claude Code's real `rate_limits` to `~/.claude/.usage-guard-limits.json` and reprints your status line. No network.
 - `hooks/usage-guard-hook.mjs` â€” the `Stop` hook. Prefers the captured real quota; falls back to the weighted budget. Emits at most one warning, throttled, fail-open.
 - `lib/reset-coach.mjs` â€” detects genuine new quota windows, prevents duplicate celebrations, and owns the optional fixed-origin `ntfy` sender.
@@ -269,13 +285,13 @@ Cache reads are ~10Ã— cheaper, so they count at 0.1. **It's a proxy for how m
 npm test
 ```
 
-46 zero-dependency checks (`node:assert` only, throwaway fixtures under your temp dir â€” never touches your real `~/.claude`). They pin the weighting formula, per-`requestId` dedup, fail-open parsing, quota gates, reset detection, one-alert-per-window behavior across parallel sessions, quiet mode, timestamp-jitter rejection, and opt-in-only `ntfy` delivery. If you send a real-world `rate_limits` report, it becomes a new fixture here.
+63 zero-dependency checks (`node:assert` only, throwaway fixtures under your temp dir â€” never touches your real `~/.claude`). They pin the weighting formula, per-`requestId` dedup, fail-open parsing, quota gates, reset detection, prompt privacy, 15-minute freshness, one-alert-per-window behavior across parallel sessions, quiet mode, timestamp-jitter rejection, and opt-in-only `ntfy` delivery. If you send a real-world `rate_limits` report, it becomes a new fixture here.
 
 ## Uninstall / disable
 
 - **Silence without removing:** set `"quiet": true` in `~/.claude/usage-guard.json`.
 - **Terminal CLI:** `/plugin uninstall usage-guard@cc-guard` (and optionally `/plugin marketplace remove cc-guard`). Remove the `statusLine` block from `settings.json` if you added it.
-- **Desktop app (manual):** delete the `Stop`-hook block (and the `statusLine` block) from `~/.claude/settings.json` and restart.
+- **Desktop app (manual):** delete the `Stop` and `UserPromptSubmit` hook blocks (and the `statusLine` block) from `~/.claude/settings.json` and restart.
 - **Cleanup (optional):** delete `~/.claude/.usage-guard-state.json`, `~/.claude/.usage-guard-limits.json`, and `~/.claude/usage-guard.json`.
 
 ## Roadmap

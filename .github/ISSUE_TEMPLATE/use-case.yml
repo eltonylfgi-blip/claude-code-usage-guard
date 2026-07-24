@@ -13,6 +13,7 @@ body:
       label: What kind of report is this?
       options:
         - "It helped or saved a session"
+        - "Quota context changed how Claude paced the work"
         - "Something behaved unexpectedly"
         - "Real quota mode did not appear"
         - "Feature or use case request"
@@ -23,7 +24,7 @@ body:
     id: details
     attributes:
       label: What happened, or what are you trying to do?
-      placeholder: 'e.g. "It warned me before a long task" or "The weekly line did not appear after setup."'
+      placeholder: 'e.g. "Claude skipped two new subagents at 91% weekly" or "The weekly line did not appear after setup."'
     validations:
       required: true
   - type: input
@@ -32,6 +33,17 @@ body:
       label: Environment (optional)
       description: Claude Code version, OS, plan, and whether you enabled the status-line shim.
       placeholder: "Claude Code 1.x, Windows, Pro, shim enabled"
+    validations:
+      required: false
+  - type: dropdown
+    id: prompt_context_effect
+    attributes:
+      label: Did the quota context change a useful decision Claude made? (optional)
+      options:
+        - "Yes"
+        - "No"
+        - "Not sure"
+        - "I am not using prompt context"
     validations:
       required: false
   - type: dropdown
