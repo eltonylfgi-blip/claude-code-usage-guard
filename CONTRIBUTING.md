@@ -1,6 +1,6 @@
 # Contributing
 
-The single most useful contribution right now is a **real-world `rate_limits` report**. The in-session real-quota capture is new and hasn't been battle-tested across many setups, so concrete data is what moves it forward.
+The single most useful contribution right now is a **real-world `rate_limits` report**, especially whether fresh quota context changed a useful pacing decision Claude made. The in-session capture is new and hasn't been battle-tested across many setups, so concrete data is what moves it forward.
 
 ## Report a rate_limits setup
 
@@ -15,7 +15,7 @@ Each report becomes a fixture in `tests/selftest.mjs`, so the behavior you hit i
 ## Code changes
 
 - Keep the [engineering principles](./ENGINEERING_PRINCIPLES.md): local-first, zero dependencies, fail-open, warn-don't-block.
-- Run `npm test` before opening a PR — all 46 zero-dependency checks must stay green.
+- Run `npm test` before opening a PR — the full zero-dependency suite must stay green.
 - New behavior needs a check in `tests/selftest.mjs` or a focused test file under `tests/`. If it can fail, it needs a test.
 
 Small, focused PRs are easiest to review. Bug reports and ideas are just as welcome as code.

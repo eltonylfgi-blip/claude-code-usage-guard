@@ -1,6 +1,6 @@
 # usage-guard — Beginner's Tutorial
 
-A friendly, copy-paste guide to installing and using **usage-guard**, the little Claude Code plugin that taps you on the shoulder as you approach your plan limits.
+A friendly, copy-paste guide to installing and using **usage-guard**, the little Claude Code plugin that gives Claude your fresh quota while it works and taps you on the shoulder before a limit.
 
 No prior plugin experience needed. We cover **both** places you might run Claude:
 
@@ -13,11 +13,19 @@ No prior plugin experience needed. We cover **both** places you might run Claude
 
 usage-guard has **two modes**, and it picks the best one available automatically.
 
-**Mode 1 — real plan quota (the good one).** Claude Code knows your actual rolling limits: a **5-hour** window and a **weekly** window, each as a percentage used. It only hands those numbers to a *status-line* script, though — never to a hook. So usage-guard ships a tiny status-line shim that grabs them and saves them locally. Once you wire that up (§3.5, one line), every turn the guard can warn you with the real numbers:
+**Mode 1 — real plan quota (the good one).** Claude Code knows your actual rolling limits: a **5-hour** window and a **weekly** window, each as a percentage used. It only hands those numbers to a *status-line* script, though — never to a hook. So usage-guard ships a tiny status-line shim that grabs them and saves them locally. Once you wire that up (§3.5, one line), the guard gives Claude the real numbers on every prompt and can warn you before the limit:
 
 ```
 ⚠️ Plan 5h quota: 88% used · resets in 1h 29m
 ```
+
+Claude privately receives a compact line like this alongside each prompt, so it can budget reasoning depth and new subagents from what actually remains:
+
+```text
+Usage guard quota: 5h 62% used | reset 2h 0m | on pace; weekly 58% used | reset 2d 0h | 13% under even pace.
+```
+
+The prompt-context hook never reads or echoes your prompt, never makes a network call, rejects snapshots older than 15 minutes, and always fails open.
 
 **Mode 2 — weighted budget (the fallback).** If the real quota isn't available yet (you didn't wire the status line, or the session hasn't made its first API call), the guard falls back to a budget **you** set, measured against a "weighted spend" proxy it reads from the local transcript files:
 
@@ -63,7 +71,7 @@ This is the easy path. In a Claude Code terminal session, run these two slash co
 - The first line tells Claude Code about the marketplace this plugin lives in (`cc-guard`).
 - The second line installs the plugin named `usage-guard` from it.
 
-That's it — the Stop hook is active immediately, and you now have the `/usage-guard:usage` command. It will stay quiet until you set a budget (§5).
+That's it — the warning and prompt-context hooks are active immediately, and you now have the `/usage-guard:usage` command. Prompt context stays silent until real-quota capture is enabled (§3.5); warnings can also use a fallback budget (§5).
 
 **Sanity check:** type `/usage-guard:usage` and press Enter. You should get a usage summary back. If you do, the install worked. (Skip to §4.)
 
@@ -71,7 +79,7 @@ That's it — the Stop hook is active immediately, and you now have the `/usage-
 
 ## 3B. Install — Route B: Claude Desktop app (no `/plugin`)
 
-The desktop app doesn't have the `/plugin` command, so we wire the hook in manually. It's two steps: **(1)** get the plugin files onto your machine, **(2)** point a Stop hook at them in your settings file.
+The desktop app doesn't have the `/plugin` command, so we wire the hooks in manually. It's two steps: **(1)** get the plugin files onto your machine, **(2)** point the warning and prompt-context hooks at them in your settings file.
 
 ### Step 1 — Get the files
 
@@ -96,7 +104,7 @@ node --version
 
 If that prints a version like `v20.x`, you're good.
 
-### Step 2 — Wire the Stop hook into `settings.json`
+### Step 2 — Wire the hooks into `settings.json`
 
 Open your settings file:
 
@@ -122,6 +130,18 @@ Paste this, replacing `/ABSOLUTE/PATH/TO/claude-code-usage-guard` with the real 
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["/ABSOLUTE/PATH/TO/claude-code-usage-guard/hooks/usage-guard-prompt-context.mjs"],
+            "timeout": 2
+          }
+        ]
+      }
     ]
   }
 }
@@ -133,13 +153,15 @@ Paste this, replacing `/ABSOLUTE/PATH/TO/claude-code-usage-guard` with the real 
             "args": ["C:\\Users\\you\\claude-code-usage-guard\\hooks\\usage-guard-hook.mjs"],
 ```
 
+Do the same for `usage-guard-prompt-context.mjs` in the second hook block.
+
 **Why `"command": "node"` and a separate `"args"` array?** Two reasons. First, `settings.json` uses the *split* form (command + args) — that's different from the plugin's own `hooks/hooks.json`, which uses a single shell string. Second, on Windows the script's `#!/usr/bin/env node` shebang line is ignored, so you must invoke Node explicitly. Using `node` + the absolute path works identically on Windows, macOS, and Linux.
 
-Save the file and **restart the Claude Desktop app** so it picks up the new hook.
+Save the file and **restart the Claude Desktop app** so it picks up the new hooks.
 
 ### What you get (and don't) on the manual route
 
-- You **do** get the automatic in-session warnings (the whole point).
+- You **do** get both automatic in-session warnings and fresh quota in Claude's context on every prompt.
 - You **don't** get the `/usage-guard:usage` slash command — that only ships with the `/plugin` install. To check your numbers on demand, run the engine directly from your clone:
 
   ```bash
@@ -154,7 +176,7 @@ Save the file and **restart the Claude Desktop app** so it picks up the new hook
 
 This is what unlocks **Mode 1**. It's a one-time edit and takes about 30 seconds. If you skip it, the guard still works in Mode 2 (weighted budget, §5) — but you'll be guessing a budget instead of using your real plan limit, so it's worth doing.
 
-**Why a status line and not just a hook?** Claude Code only puts your real `rate_limits` (the 5h and weekly percentages) into the JSON it sends to a **status-line** command. Hooks never see it. A plugin also can't auto-register a top-level status line for you. So usage-guard ships a tiny script that runs *as* your status line: it reads that JSON, saves the numbers to `~/.claude/.usage-guard-limits.json`, and reprints your status line. The `Stop` hook then reads that file. No network — it only reads what Claude Code already handed it.
+**Why a status line and not just a hook?** Claude Code only puts your real `rate_limits` (the 5h and weekly percentages) into the JSON it sends to a **status-line** command. Hooks never receive those fields directly. A plugin also can't auto-register a top-level status line for you. So usage-guard ships a tiny script that runs *as* your status line: it reads that JSON, saves the numbers to `~/.claude/.usage-guard-limits.json`, and reprints your status line. The `Stop` and `UserPromptSubmit` hooks then read that local file. No network — it only reads what Claude Code already handed it.
 
 **Step 1 — find the script path.** After a `/plugin` install, the plugin lives under `~/.claude/plugins/` (run `/plugin` to see the exact folder). The script is:
 
@@ -309,6 +331,7 @@ The full file, with every field (all optional except that you need at least one 
   "burnRatePerHour": 2000000,
   "throttleMinutes": 10,
   "resetCelebration": true,
+  "promptContext": true,
   "ntfyTopic": "",
   "quiet": false
 }
@@ -323,8 +346,9 @@ The full file, with every field (all optional except that you need at least one 
 | `burnRatePerHour` | `0` (off) | Warn if your weighted spend **in the last hour** exceeds this. |
 | `throttleMinutes` | `10` | Minimum minutes between warnings — the anti-spam cooldown. |
 | `resetCelebration` | `true` | Announce a newly observed 5h / weekly window once. |
+| `promptContext` | `true` | Give Claude fresh real-quota context on every prompt; set `false` to disable only this feature. |
 | `ntfyTopic` | `""` (off) | Optional reset alert through `ntfy.sh`; `NTFY_TOPIC` overrides the file. |
-| `quiet` | `false` | `true` = record state but emit no warning, celebration, or phone alert; `/usage-guard:usage` still works. |
+| `quiet` | `false` | `true` = record state but emit no prompt context, warning, celebration, or phone alert; `/usage-guard:usage` still works. |
 
 > **Note for desktop / custom-window users:** the `/usage-guard:usage` command (and the `node lib/engine.mjs` CLI) always reports a fixed **5-hour** view. If you set a different `windowHours`, that affects your *automatic warnings* but not what the command prints.
 
@@ -367,14 +391,14 @@ Config changes take effect on the **next** turn — no restart needed for the te
 
 ## 8. Disable or uninstall
 
-**Just want the warnings to stop (keep the plugin):**
+**Just want all automatic output to stop (keep the plugin):**
 Set `quiet` in `~/.claude/usage-guard.json`:
 
 ```json
 { "quiet": true }
 ```
 
-Warnings stop immediately; `/usage-guard:usage` still works.
+Prompt context, warnings, celebrations, and phone alerts stop immediately; `/usage-guard:usage` still works.
 
 **Uninstall — Route A (terminal plugin):**
 
@@ -389,7 +413,7 @@ and, if you also want to forget the marketplace entry:
 ```
 
 **Uninstall — Route B (desktop manual hook):**
-Open `~/.claude/settings.json` (Windows: `%USERPROFILE%\.claude\settings.json`), delete the `"Stop"` hook block you added in §3B Step 2, save, and **restart the app**.
+Open `~/.claude/settings.json` (Windows: `%USERPROFILE%\.claude\settings.json`), delete the `"Stop"` and `"UserPromptSubmit"` hook blocks you added in §3B Step 2, save, and **restart the app**.
 
 Also remove the `statusLine` block from `settings.json` if you added it in §3.5.
 
@@ -404,8 +428,9 @@ Also remove the `statusLine` block from `settings.json` if you added it in §3.5
 ## 9. Troubleshooting
 
 - **No warnings ever fire.** You probably haven't set a budget — `weightBudget` and `burnRatePerHour` are both `0` by default, which is *off*. See §5. Also check `quiet` isn't `true`. Fresh-window alerts additionally require the real-quota status-line shim and one earlier snapshot as a baseline.
+- **Claude gets no quota context.** Confirm the real-quota sanity check in §3.5 works, `promptContext` isn't `false`, and the snapshot refresh is no older than 15 minutes. The hook intentionally stays silent on missing or stale data.
 - **`/usage-guard:usage` says "command not found."** That command only exists on the terminal `/plugin` install (Route A). On the desktop manual route, run `node .../lib/engine.mjs` from your clone instead.
 - **Desktop hook does nothing.** Confirm `node --version` works in a terminal (Node 18+ on PATH), confirm the path in `settings.json` is **absolute** and (on Windows) uses **doubled backslashes** `\\`, and make sure you **restarted the app** after editing `settings.json`.
 - **"No usage found in the last 5h."** You simply haven't used Claude in the window yet, or transcripts live in a custom `CLAUDE_CONFIG_DIR` — point that env var the same way Claude Code does.
 
-That's the whole thing. Set a budget once, then forget it — usage-guard taps you on the shoulder only when it matters.
+That's the whole thing. Enable real quota once, then forget it — Claude sees what remains and usage-guard taps you on the shoulder only when it matters.
