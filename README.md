@@ -36,10 +36,21 @@ If you would rather set it up yourself, everything below is free.
 
 ## Install
 
+usage-guard is a **Claude Code** plugin. It does not run in the plain Claude chat app.
+
 ```
 /plugin marketplace add eltonylfgi-blip/claude-code-usage-guard
 /plugin install usage-guard@cc-guard
 ```
+
+If `/plugin` is not available in your Claude Code environment, run the equivalent terminal commands:
+
+```bash
+claude plugin marketplace add eltonylfgi-blip/claude-code-usage-guard
+claude plugin install usage-guard@cc-guard
+```
+
+Restart Claude Code if needed, then run `/usage-guard:usage` to verify the plugin appears.
 
 ### Choose your setup path
 
